@@ -1,4 +1,5 @@
 mod bindings;
+mod resources;
 
 use crate::bindings::exports::ntwk::theater::actor::Guest;
 use crate::bindings::exports::ntwk::theater::http_handlers::Guest as HttpHandlersGuest;
@@ -162,6 +163,9 @@ impl Guest for Component {
 
         // Add routes
         add_route(server_id, "/", "GET", api_handler_id)?;
+        add_route(server_id, "/index.html", "GET", api_handler_id)?;
+        add_route(server_id, "/styles.css", "GET", api_handler_id)?;
+        add_route(server_id, "/bundle.js", "GET", api_handler_id)?;
         add_route(server_id, "/api/conversations", "GET", api_handler_id)?;
 
         // Enable WebSocket support
@@ -208,13 +212,31 @@ impl HttpHandlersGuest for Component {
 
         // Route handling
         let response = match path {
-            "/" => {
-                // Serve HTML chat interface
-                let html = include_str!("../static/index.html");
+            "/" | "/index.html" => {
+                // Serve HTML chat interface using resources module
+                let html = resources::INDEX_HTML;
                 HttpResponse {
                     status: 200,
                     headers: vec![("Content-Type".to_string(), "text/html".to_string())],
                     body: Some(html.as_bytes().to_vec()),
+                }
+            }
+            "/styles.css" => {
+                // Serve CSS file
+                let css = resources::STYLES_CSS;
+                HttpResponse {
+                    status: 200,
+                    headers: vec![("Content-Type".to_string(), "text/css".to_string())],
+                    body: Some(css.as_bytes().to_vec()),
+                }
+            }
+            "/bundle.js" => {
+                // Serve bundled JavaScript
+                let js = resources::BUNDLE_JS;
+                HttpResponse {
+                    status: 200,
+                    headers: vec![("Content-Type".to_string(), "application/javascript".to_string())],
+                    body: Some(js.as_bytes().to_vec()),
                 }
             }
             "/api/conversations" => {
@@ -315,10 +337,11 @@ impl HttpHandlersGuest for Component {
 
         let content = match message.ty {
             MessageType::Text => {
-                String::from_utf8(message.data.expect("Text data is missing")).unwrap_or_default()
+                String::from_utf8(message.text.expect("Text data is missing").into())
+                    .unwrap_or_default()
             }
             MessageType::Binary => {
-                String::from_utf8(message.text.expect("Binary data is missing").into())
+                String::from_utf8(message.data.expect("Binary data is missing"))
                     .unwrap_or_default()
             }
             _ => String::new(),
@@ -462,7 +485,8 @@ fn handle_client_message(
                         error: Some("PARSE_ERROR".to_string()),
                         meta: None,
                     })
-                    .unwrap_or_default(),
+                    .unwrap_or_default()
+                    .into(),
                 ),
                 data: None,
             }]);
@@ -496,7 +520,8 @@ fn handle_client_message(
                         error: None,
                         meta: None,
                     })
-                    .unwrap_or_default(),
+                    .unwrap_or_default()
+                    .into(),
                 ),
                 data: None,
             }])
@@ -520,7 +545,8 @@ fn handle_client_message(
                                         error: Some("NO_CONVERSATION".to_string()),
                                         meta: None,
                                     })
-                                    .unwrap_or_default(),
+                                    .unwrap_or_default()
+                                    .into(),
                                 ),
                                 data: None,
                             }])
@@ -543,7 +569,8 @@ fn handle_client_message(
                                 error: Some("EMPTY_MESSAGE".to_string()),
                                 meta: None,
                             })
-                            .unwrap_or_default(),
+                            .unwrap_or_default()
+                            .into(),
                         ),
                         data: None,
                     }])
@@ -593,7 +620,8 @@ fn handle_client_message(
                                 error: None,
                                 meta: None,
                             })
-                            .unwrap_or_default(),
+                            .unwrap_or_default()
+                            .into(),
                         ),
                         data: None,
                     }])
@@ -610,7 +638,8 @@ fn handle_client_message(
                                 error: Some("ANTHROPIC_ERROR".to_string()),
                                 meta: None,
                             })
-                            .unwrap_or_default(),
+                            .unwrap_or_default()
+                            .into(),
                         ),
                         data: None,
                     }])
@@ -629,7 +658,8 @@ fn handle_client_message(
                         error: Some("UNKNOWN_ACTION".to_string()),
                         meta: None,
                     })
-                    .unwrap_or_default(),
+                    .unwrap_or_default()
+                    .into(),
                 ),
                 data: None,
             }])

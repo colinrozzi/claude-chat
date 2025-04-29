@@ -67,6 +67,9 @@
             wasmtime
             binaryen
             wasm-tools
+            # Frontend build tools
+            nodejs
+            esbuild
             # Development tools
             rustfmt
             clippy
@@ -91,6 +94,8 @@
             cargo-component
             cacert
             rustup
+            esbuild
+            nodejs
           ];
           
           buildInputs = with pkgs; [ 
@@ -104,6 +109,28 @@
             export CARGO_COMPONENT_CACHE_DIR=$TMPDIR/cargo-component-cache
             mkdir -p $CARGO_HOME $XDG_CACHE_HOME $CARGO_COMPONENT_CACHE_DIR
             
+            # Debug info - show directory structure before bundling
+            echo "Directory structure before bundling:"
+            find . -type f | grep -v "target\|\.git" | sort
+            
+            # Create dist directory
+            mkdir -p assets/dist
+            
+            # Bundle the JavaScript with esbuild
+            echo "Bundling JavaScript with esbuild..."
+            esbuild assets/src/index.js \
+              --bundle \
+              --minify \
+              --sourcemap \
+              --outfile=assets/dist/bundle.js \
+              --target=es2020 \
+              --format=esm \
+              --platform=browser
+            
+            # Debug info - show files after bundling
+            echo "Files after bundling:"
+            find assets -type f | sort
+            
             # Ensure SSL certificates are available
             export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
             export NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
@@ -113,7 +140,7 @@
           '';
 
           installPhase = ''
-            mkdir -p $out/lib
+            mkdir -p $out/lib $out/assets $out/assets/dist
             
             # Install WebAssembly files - transform hyphens to underscores in source file name
             echo "Copying WebAssembly file to $out/lib"
@@ -121,6 +148,12 @@
             echo "LS: $(ls ./target/wasm32-unknown-unknown/release)"
             SOURCE_FILE="./target/wasm32-unknown-unknown/release/$(echo claude-chat | tr '-' '_').wasm"
             cp $SOURCE_FILE $out/lib/claude-chat.wasm
+            
+            # Copy assets files
+            echo "Copying assets files"
+            cp -r ./assets/index.html $out/assets/
+            cp -r ./assets/styles.css $out/assets/
+            cp -r ./assets/dist/bundle.js $out/assets/dist/
           '';
           
           # No longer need network access during build

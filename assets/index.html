@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Chat</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Claude Chat</h1>
+    </header>
+    <div class="container">
+        <div class="chat-container">
+            <div class="conversations">
+                <button id="new-conversation" class="new-conversation-btn">New Conversation</button>
+                <div id="conversation-list">
+                    <!-- Conversations will be added here -->
+                </div>
+            </div>
+            <div class="chat-panel">
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Messages will be added here -->
+                </div>
+                <div id="typing-indicator" class="typing-indicator">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                <div class="chat-input">
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <textarea id="message-input" placeholder="Type your message here..." disabled></textarea>
+                        <div class="system-prompt">
+                            <label for="system-prompt-input" class="system-prompt-label">System prompt (optional)</label>
+                            <textarea id="system-prompt-input" placeholder="You are a helpful AI assistant..." disabled></textarea>
+                        </div>
+                    </div>
+                    <button id="send-button" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/bundle.js"></script>
+</body>
+</html>
