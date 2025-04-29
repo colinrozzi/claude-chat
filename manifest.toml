@@ -1,0 +1,20 @@
+name = "claude-chat"
+component_path = "/nix/store/2ccdi5r66l8s4lpwyif3flrznhaw8ixr-claude-chat-0.1.0/lib/claude-chat.wasm"
+short_description = "An HTTP server actor with REST API and WebSocket support for Claude chat"
+
+[[handlers]]
+type = "runtime"
+
+[handlers.config]
+
+[[handlers]]
+type = "http-framework"
+
+[handlers.config]
+
+[[handlers]]
+type = "timing"
+
+[handlers.config]
+
+

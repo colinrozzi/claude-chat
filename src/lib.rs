@@ -10,6 +10,7 @@ use crate::bindings::ntwk::theater::http_framework::{
 use crate::bindings::ntwk::theater::http_types::{HttpRequest, HttpResponse, MiddlewareResult};
 use crate::bindings::ntwk::theater::message_server_host::request;
 use crate::bindings::ntwk::theater::runtime::log;
+use crate::bindings::ntwk::theater::timing::now;
 use crate::bindings::ntwk::theater::types::State;
 use crate::bindings::ntwk::theater::websocket_types::{MessageType, WebsocketMessage};
 
@@ -580,10 +581,8 @@ fn handle_client_message(
             };
 
             // Add user message to conversation
-            let timestamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
+            // Get current time in milliseconds and convert to seconds
+            let timestamp = now() / 1000;
 
             let user_message = ChatMessage {
                 role: "user".to_string(),
@@ -690,10 +689,8 @@ fn send_to_anthropic(
     let filler_content = format!("This is a temporary filler response. You said: '{}'. Once the anthropic-proxy connection is set up, this will be replaced with actual Claude responses.", latest_user_message);
 
     // Create assistant message with current timestamp
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    // Get current time in milliseconds and convert to seconds
+    let timestamp = now() / 1000;
 
     Ok(ChatMessage {
         role: "assistant".to_string(),

@@ -6,6 +6,7 @@ world claude-chat {
     import http-client;
     import websocket-types;
     import message-server-host;
+    import timing;
 
     export message-server-client;
     export actor;
