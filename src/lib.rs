@@ -6,11 +6,118 @@ use crate::bindings::exports::ntwk::theater::message_server_client::Guest as Mes
 use crate::bindings::ntwk::theater::http_framework::{
     add_route, create_server, enable_websocket, register_handler, start_server, ServerConfig,
 };
-use crate::bindings::ntwk::theater::http_types::{
-    HttpRequest, HttpResponse, MiddlewareResult,
-};
+use crate::bindings::ntwk::theater::http_types::{HttpRequest, HttpResponse, MiddlewareResult};
+use crate::bindings::ntwk::theater::message_server_host::request;
 use crate::bindings::ntwk::theater::runtime::log;
 use crate::bindings::ntwk::theater::types::State;
+use crate::bindings::ntwk::theater::websocket_types::{MessageType, WebsocketMessage};
+
+use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
+use std::collections::HashMap;
+
+// State for our chat actor
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ChatState {
+    // Actor ID for the anthropic-proxy
+    anthropic_proxy_id: String,
+    // Map of connection IDs to conversation IDs
+    connections: HashMap<u64, String>,
+    // Map of conversation IDs to message histories
+    conversations: HashMap<String, Vec<ChatMessage>>,
+}
+
+// Message format for chat
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ChatMessage {
+    role: String,
+    content: String,
+    timestamp: u64,
+}
+
+// Request format for the Anthropic API
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct AnthropicRequest {
+    version: String,
+    operation_type: String,
+    request_id: String,
+    completion_request: Option<CompletionRequest>,
+    params: Option<HashMap<String, serde_json::Value>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct CompletionRequest {
+    model: String,
+    messages: Vec<ChatMessage>,
+    max_tokens: Option<u32>,
+    temperature: Option<f32>,
+    system: Option<String>,
+    top_p: Option<f32>,
+    anthropic_version: Option<String>,
+    additional_params: Option<HashMap<String, serde_json::Value>>,
+}
+
+// Response format from the Anthropic API
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct AnthropicResponse {
+    version: String,
+    request_id: String,
+    status: String,
+    error: Option<String>,
+    completion: Option<CompletionResult>,
+    models: Option<Vec<ModelInfo>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct CompletionResult {
+    content: String,
+    id: String,
+    model: String,
+    stop_reason: String,
+    stop_sequence: Option<String>,
+    message_type: String,
+    usage: Usage,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Usage {
+    input_tokens: u32,
+    output_tokens: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ModelInfo {
+    id: String,
+    display_name: String,
+    max_tokens: u32,
+    provider: String,
+    pricing: Option<ModelPricing>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ModelPricing {
+    input_cost_per_million_tokens: f64,
+    output_cost_per_million_tokens: f64,
+}
+
+// Messages from the frontend
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ClientMessage {
+    action: String,
+    conversation_id: Option<String>,
+    message: Option<String>,
+    system: Option<String>,
+}
+
+// Messages to the frontend
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ServerMessage {
+    message_type: String,
+    conversation_id: String,
+    content: String,
+    error: Option<String>,
+    meta: Option<HashMap<String, String>>,
+}
 
 struct Component;
 
@@ -19,6 +126,19 @@ impl Guest for Component {
         log("Initializing claude-chat HTTP actor");
         let (param,) = params;
         log(&format!("Init parameter: {}", param));
+
+        // Initialize state with the anthropic-proxy ID
+        let chat_state = ChatState {
+            anthropic_proxy_id: "anthropic-proxy".to_string(), // Default to the fixed actor ID
+            connections: HashMap::new(),
+            conversations: HashMap::new(),
+        };
+
+        // Serialize state
+        let state_bytes = match serde_json::to_vec(&chat_state) {
+            Ok(bytes) => bytes,
+            Err(e) => return Err(format!("Failed to serialize state: {}", e)),
+        };
 
         // Set up HTTP server
         let config = ServerConfig {
@@ -42,11 +162,11 @@ impl Guest for Component {
 
         // Add routes
         add_route(server_id, "/", "GET", api_handler_id)?;
-        add_route(server_id, "/api/hello", "GET", api_handler_id)?;
-        
+        add_route(server_id, "/api/conversations", "GET", api_handler_id)?;
+
         // Enable WebSocket support
         enable_websocket(
-            server_id, 
+            server_id,
             "/ws",
             Some(ws_handler_id), // Connect handler
             ws_handler_id,       // Message handler
@@ -57,7 +177,7 @@ impl Guest for Component {
         let port = start_server(server_id)?;
         log(&format!("Server started on port {}", port));
 
-        Ok((Some(param.as_bytes().to_vec()),))
+        Ok((Some(state_bytes),))
     }
 }
 
@@ -67,36 +187,48 @@ impl HttpHandlersGuest for Component {
         params: (u64, HttpRequest),
     ) -> Result<(Option<Vec<u8>>, (HttpResponse,)), String> {
         let (handler_id, request) = params;
-        log(&format!("Handling HTTP request with handler ID: {}", handler_id));
+        log(&format!(
+            "Handling HTTP request with handler ID: {}",
+            handler_id
+        ));
         log(&format!("Request URI: {}", request.uri));
 
         // Parse the URI to get the path and query
         let mut path_parts = request.uri.splitn(2, '?');
         let path = path_parts.next().unwrap_or("/");
 
+        // Parse state
+        let chat_state: ChatState = match state.clone() {
+            Some(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Failed to parse state: {}", e)),
+            },
+            None => return Err("Missing state".to_string()),
+        };
+
         // Route handling
         let response = match path {
             "/" => {
-                // Serve simple homepage
+                // Serve HTML chat interface
+                let html = include_str!("../static/index.html");
                 HttpResponse {
                     status: 200,
                     headers: vec![("Content-Type".to_string(), "text/html".to_string())],
-                    body: Some("<html><body><h1>Welcome to claude-chat</h1><p>A Theater HTTP actor</p></body></html>".as_bytes().to_vec()),
+                    body: Some(html.as_bytes().to_vec()),
                 }
-            },
-            "/api/hello" => {
-                // Simple JSON API response
-                let json = serde_json::json!({
-                    "message": "Hello from claude-chat HTTP actor!",
-                    "timestamp": "2025-04-27T00:00:00Z",
-                }).to_string();
-                
+            }
+            "/api/conversations" => {
+                // Return list of conversations
+                let conversations: Vec<String> = chat_state.conversations.keys().cloned().collect();
+                let json =
+                    serde_json::to_string(&conversations).unwrap_or_else(|_| "[]".to_string());
+
                 HttpResponse {
                     status: 200,
                     headers: vec![("Content-Type".to_string(), "application/json".to_string())],
                     body: Some(json.as_bytes().to_vec()),
                 }
-            },
+            }
             _ => {
                 // Not found
                 HttpResponse {
@@ -115,7 +247,10 @@ impl HttpHandlersGuest for Component {
         params: (u64, HttpRequest),
     ) -> Result<(Option<Vec<u8>>, (MiddlewareResult,)), String> {
         let (handler_id, request) = params;
-        log(&format!("Handling middleware with handler ID: {}", handler_id));
+        log(&format!(
+            "Handling middleware with handler ID: {}",
+            handler_id
+        ));
 
         // For now, just pass all requests through
         Ok((
@@ -137,23 +272,68 @@ impl HttpHandlersGuest for Component {
             handler_id, connection_id, path
         ));
 
-        Ok((state,))
+        // Parse state
+        let mut chat_state: ChatState = match state {
+            Some(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Failed to parse state: {}", e)),
+            },
+            None => return Err("Missing state".to_string()),
+        };
+
+        // Save connection in state
+        // We'll assign a conversation ID when the client requests one
+        chat_state.connections.insert(connection_id, String::new());
+
+        // Serialize updated state
+        let updated_state = match serde_json::to_vec(&chat_state) {
+            Ok(bytes) => bytes,
+            Err(e) => return Err(format!("Failed to serialize state: {}", e)),
+        };
+
+        Ok((Some(updated_state),))
     }
 
     fn handle_websocket_message(
         state: Option<Vec<u8>>,
-        params: (u64, u64, crate::bindings::ntwk::theater::websocket_types::WebsocketMessage),
-    ) -> Result<(Option<Vec<u8>>, (Vec<crate::bindings::ntwk::theater::websocket_types::WebsocketMessage>,)), String> {
+        params: (u64, u64, WebsocketMessage),
+    ) -> Result<(Option<Vec<u8>>, (Vec<WebsocketMessage>,)), String> {
         let (handler_id, connection_id, message) = params;
         log(&format!(
             "WebSocket message received - Handler: {}, Connection: {}",
             handler_id, connection_id
         ));
 
-        // Echo the message back to the client
-        let response = vec![message];
-        
-        Ok((state, (response,)))
+        // Parse state
+        let mut chat_state: ChatState = match state {
+            Some(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Failed to parse state: {}", e)),
+            },
+            None => return Err("Missing state".to_string()),
+        };
+
+        let content = match message.ty {
+            MessageType::Text => {
+                String::from_utf8(message.data.expect("Text data is missing")).unwrap_or_default()
+            }
+            MessageType::Binary => {
+                String::from_utf8(message.text.expect("Binary data is missing").into())
+                    .unwrap_or_default()
+            }
+            _ => String::new(),
+        };
+
+        // Handle message
+        let response_messages = handle_client_message(&mut chat_state, connection_id, &content)?;
+
+        // Serialize updated state
+        let updated_state = match serde_json::to_vec(&chat_state) {
+            Ok(bytes) => bytes,
+            Err(e) => return Err(format!("Failed to serialize state: {}", e)),
+        };
+
+        Ok((Some(updated_state), (response_messages,)))
     }
 
     fn handle_websocket_disconnect(
@@ -166,7 +346,25 @@ impl HttpHandlersGuest for Component {
             handler_id, connection_id
         ));
 
-        Ok((state,))
+        // Parse state
+        let mut chat_state: ChatState = match state {
+            Some(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(s) => s,
+                Err(e) => return Err(format!("Failed to parse state: {}", e)),
+            },
+            None => return Err("Missing state".to_string()),
+        };
+
+        // Remove connection from state
+        chat_state.connections.remove(&connection_id);
+
+        // Serialize updated state
+        let updated_state = match serde_json::to_vec(&chat_state) {
+            Ok(bytes) => bytes,
+            Err(e) => return Err(format!("Failed to serialize state: {}", e)),
+        };
+
+        Ok((Some(updated_state),))
     }
 }
 
@@ -241,6 +439,283 @@ impl MessageServerClient for Component {
         log(&format!("Channel message: {:?}", params));
         Ok((state,))
     }
+}
+
+// Helper function to handle client messages
+fn handle_client_message(
+    chat_state: &mut ChatState,
+    connection_id: u64,
+    content: &str,
+) -> Result<Vec<WebsocketMessage>, String> {
+    // Parse client message
+    let client_message: ClientMessage = match serde_json::from_str(content) {
+        Ok(msg) => msg,
+        Err(e) => {
+            log(&format!("Failed to parse client message: {}", e));
+            return Ok(vec![WebsocketMessage {
+                ty: MessageType::Text,
+                text: Some(
+                    serde_json::to_string(&ServerMessage {
+                        message_type: "error".to_string(),
+                        conversation_id: "".to_string(),
+                        content: format!("Invalid message format: {}", e),
+                        error: Some("PARSE_ERROR".to_string()),
+                        meta: None,
+                    })
+                    .unwrap_or_default(),
+                ),
+                data: None,
+            }]);
+        }
+    };
+
+    // Handle different actions
+    match client_message.action.as_str() {
+        "new_conversation" => {
+            // Generate a new conversation ID
+            let conversation_id = generate_conversation_id(content.to_string());
+
+            // Associate connection with conversation
+            chat_state
+                .connections
+                .insert(connection_id, conversation_id.clone());
+
+            // Create empty conversation history
+            chat_state
+                .conversations
+                .insert(conversation_id.clone(), Vec::new());
+
+            // Send confirmation to client
+            Ok(vec![WebsocketMessage {
+                ty: MessageType::Text,
+                text: Some(
+                    serde_json::to_string(&ServerMessage {
+                        message_type: "conversation_created".to_string(),
+                        conversation_id: conversation_id.clone(),
+                        content: "New conversation created".to_string(),
+                        error: None,
+                        meta: None,
+                    })
+                    .unwrap_or_default(),
+                ),
+                data: None,
+            }])
+        }
+        "send_message" => {
+            // Get conversation ID
+            let conversation_id = match client_message.conversation_id {
+                Some(id) if !id.is_empty() => id,
+                _ => {
+                    // Try to get from connection
+                    match chat_state.connections.get(&connection_id) {
+                        Some(id) if !id.is_empty() => id.clone(),
+                        _ => {
+                            return Ok(vec![WebsocketMessage {
+                                ty: MessageType::Text,
+                                text: Some(
+                                    serde_json::to_string(&ServerMessage {
+                                        message_type: "error".to_string(),
+                                        conversation_id: "".to_string(),
+                                        content: "No active conversation".to_string(),
+                                        error: Some("NO_CONVERSATION".to_string()),
+                                        meta: None,
+                                    })
+                                    .unwrap_or_default(),
+                                ),
+                                data: None,
+                            }])
+                        }
+                    }
+                }
+            };
+
+            // Get message content
+            let message_content = match client_message.message {
+                Some(content) if !content.is_empty() => content,
+                _ => {
+                    return Ok(vec![WebsocketMessage {
+                        ty: MessageType::Text,
+                        text: Some(
+                            serde_json::to_string(&ServerMessage {
+                                message_type: "error".to_string(),
+                                conversation_id: conversation_id,
+                                content: "Empty message".to_string(),
+                                error: Some("EMPTY_MESSAGE".to_string()),
+                                meta: None,
+                            })
+                            .unwrap_or_default(),
+                        ),
+                        data: None,
+                    }])
+                }
+            };
+
+            // Add user message to conversation
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            let user_message = ChatMessage {
+                role: "user".to_string(),
+                content: message_content.clone(),
+                timestamp,
+            };
+
+            // Get conversation history
+            let conversation = chat_state
+                .conversations
+                .entry(conversation_id.clone())
+                .or_insert_with(Vec::new);
+
+            // Add user message to history
+            conversation.push(user_message.clone());
+
+            // Send to Anthropic via our proxy
+            match send_to_anthropic(
+                &chat_state.anthropic_proxy_id,
+                &conversation_id,
+                conversation,
+                client_message.system,
+            ) {
+                Ok(assistant_message) => {
+                    // Add assistant message to conversation history
+                    conversation.push(assistant_message.clone());
+
+                    // Send response to client
+                    Ok(vec![WebsocketMessage {
+                        ty: MessageType::Text,
+                        text: Some(
+                            serde_json::to_string(&ServerMessage {
+                                message_type: "message".to_string(),
+                                conversation_id: conversation_id,
+                                content: assistant_message.content,
+                                error: None,
+                                meta: None,
+                            })
+                            .unwrap_or_default(),
+                        ),
+                        data: None,
+                    }])
+                }
+                Err(e) => {
+                    // Send error to client
+                    Ok(vec![WebsocketMessage {
+                        ty: MessageType::Text,
+                        text: Some(
+                            serde_json::to_string(&ServerMessage {
+                                message_type: "error".to_string(),
+                                conversation_id: conversation_id,
+                                content: format!("Failed to get response: {}", e),
+                                error: Some("ANTHROPIC_ERROR".to_string()),
+                                meta: None,
+                            })
+                            .unwrap_or_default(),
+                        ),
+                        data: None,
+                    }])
+                }
+            }
+        }
+        _ => {
+            // Unknown action
+            Ok(vec![WebsocketMessage {
+                ty: MessageType::Text,
+                text: Some(
+                    serde_json::to_string(&ServerMessage {
+                        message_type: "error".to_string(),
+                        conversation_id: "".to_string(),
+                        content: format!("Unknown action: {}", client_message.action),
+                        error: Some("UNKNOWN_ACTION".to_string()),
+                        meta: None,
+                    })
+                    .unwrap_or_default(),
+                ),
+                data: None,
+            }])
+        }
+    }
+}
+
+// Helper function to send a message to the Anthropic proxy
+fn send_to_anthropic(
+    proxy_id: &str,
+    conversation_id: &str,
+    messages: &[ChatMessage],
+    system: Option<String>,
+) -> Result<ChatMessage, String> {
+    log("Sending message to Anthropic proxy");
+
+    // Create request
+    let req = AnthropicRequest {
+        version: "1.0".to_string(),
+        operation_type: "ChatCompletion".to_string(),
+        request_id: format!("req-{}", conversation_id),
+        completion_request: Some(CompletionRequest {
+            model: "claude-3-7-sonnet-20250219".to_string(), // Default to latest model
+            messages: messages.to_vec(),
+            max_tokens: Some(4096),
+            temperature: Some(0.7),
+            system: system,
+            top_p: None,
+            anthropic_version: None,
+            additional_params: None,
+        }),
+        params: None,
+    };
+
+    // Serialize request
+    let request_bytes = match serde_json::to_vec(&req) {
+        Ok(bytes) => bytes,
+        Err(e) => return Err(format!("Failed to serialize request: {}", e)),
+    };
+
+    // Send request
+    let response_bytes = match request(proxy_id, &request_bytes) {
+        Ok(bytes) => bytes,
+        Err(e) => return Err(format!("Failed to send request: {}", e)),
+    };
+
+    // Parse response
+    let response: AnthropicResponse = match serde_json::from_slice(&response_bytes) {
+        Ok(resp) => resp,
+        Err(e) => return Err(format!("Failed to parse response: {}", e)),
+    };
+
+    // Check status
+    if response.status != "Success" {
+        return Err(response
+            .error
+            .unwrap_or_else(|| "Unknown error".to_string()));
+    }
+
+    // Get completion
+    let completion = match response.completion {
+        Some(comp) => comp,
+        None => return Err("No completion in response".to_string()),
+    };
+
+    // Create assistant message
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    Ok(ChatMessage {
+        role: "assistant".to_string(),
+        content: completion.content,
+        timestamp,
+    })
+}
+
+// Generate a unique conversation ID
+fn generate_conversation_id(string: String) -> String {
+    let mut sha1 = sha1::Sha1::new();
+    sha1.update(string.as_bytes());
+    let hash = sha1.finalize();
+    let hash_str = hex::encode(hash);
+
+    format!("conv-{}", hash_str)
 }
 
 bindings::export!(Component with_types_in bindings);
