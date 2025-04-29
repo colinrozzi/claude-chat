@@ -1,9 +1,20 @@
-import { safeJsonParse } from './utils.js';
+import { 
+    safeJsonParse, 
+    formatTimestamp, 
+    showToast, 
+    truncateText, 
+    copyToClipboard, 
+    formatConversationId,
+    md,
+    toggleTheme,
+    initTheme
+} from './utils.js';
 
 // State management
 export const state = {
     websocket: null,
     conversations: [],
+    conversationNames: {}, // Store custom names for conversations
     activeConversationId: null,
     messages: {},
     connected: false
@@ -23,7 +34,13 @@ export function setupElements() {
         systemPromptInput: document.getElementById('system-prompt-input'),
         sendButton: document.getElementById('send-button'),
         newConversationButton: document.getElementById('new-conversation'),
-        typingIndicator: document.getElementById('typing-indicator')
+        typingIndicator: document.getElementById('typing-indicator'),
+        currentChatTitle: document.getElementById('current-chat-title'),
+        themeToggle: document.getElementById('theme-toggle'),
+        renameDialog: document.getElementById('rename-dialog'),
+        renameInput: document.getElementById('rename-input'),
+        renameCancel: document.getElementById('rename-cancel'),
+        renameConfirm: document.getElementById('rename-confirm')
     };
 }
 
@@ -31,6 +48,7 @@ export function setupElements() {
  * Set up event handlers for the chat interface
  */
 export function setupEventHandlers() {
+    // Message sending
     elements.sendButton.addEventListener('click', sendMessage);
     elements.messageInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -38,7 +56,66 @@ export function setupEventHandlers() {
             sendMessage();
         }
     });
+    
+    // Conversation management
     elements.newConversationButton.addEventListener('click', createNewConversation);
+    
+    // Theme toggling
+    elements.themeToggle.addEventListener('click', toggleTheme);
+    
+    // Rename dialog
+    elements.renameCancel.addEventListener('click', () => {
+        elements.renameDialog.classList.remove('active');
+    });
+    
+    elements.renameConfirm.addEventListener('click', confirmRename);
+    
+    // Close dialog when clicking outside
+    elements.renameDialog.addEventListener('click', (e) => {
+        if (e.target === elements.renameDialog) {
+            elements.renameDialog.classList.remove('active');
+        }
+    });
+    
+    // Initialize theme
+    initTheme();
+    
+    // Load data from localStorage
+    loadStateFromStorage();
+}
+
+/**
+ * Load saved state from localStorage
+ */
+function loadStateFromStorage() {
+    try {
+        const savedState = localStorage.getItem('claudeChatState');
+        if (savedState) {
+            const parsedState = JSON.parse(savedState);
+            
+            // Restore conversation names
+            if (parsedState.conversationNames) {
+                state.conversationNames = parsedState.conversationNames;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading state from localStorage:', error);
+    }
+}
+
+/**
+ * Save state to localStorage
+ */
+function saveStateToStorage() {
+    try {
+        const stateToSave = {
+            conversationNames: state.conversationNames
+        };
+        
+        localStorage.setItem('claudeChatState', JSON.stringify(stateToSave));
+    } catch (error) {
+        console.error('Error saving state to localStorage:', error);
+    }
 }
 
 /**
@@ -54,6 +131,7 @@ export function initWebSocket() {
         console.log('WebSocket connection established');
         state.connected = true;
         elements.newConversationButton.disabled = false;
+        showToast('Connected to server', 'success');
     };
     
     state.websocket.onmessage = (event) => {
@@ -68,12 +146,15 @@ export function initWebSocket() {
         elements.sendButton.disabled = true;
         elements.newConversationButton.disabled = true;
         
+        showToast('Connection lost. Reconnecting...', 'error');
+        
         // Try to reconnect after a delay
         setTimeout(initWebSocket, 3000);
     };
     
     state.websocket.onerror = (error) => {
         console.error('WebSocket error:', error);
+        showToast('Connection error', 'error');
     };
 }
 
@@ -126,6 +207,8 @@ export function handleConversationCreated(message) {
     elements.systemPromptInput.disabled = false;
     elements.sendButton.disabled = false;
     elements.messageInput.focus();
+    
+    showToast('New conversation created', 'success');
 }
 
 /**
@@ -179,6 +262,8 @@ export function handleError(message) {
     // Enable inputs
     elements.messageInput.disabled = false;
     elements.sendButton.disabled = false;
+    
+    showToast(`Error: ${message.content}`, 'error');
 }
 
 /**
@@ -246,6 +331,7 @@ export function setActiveConversation(conversationId) {
     // Update UI
     updateConversationList();
     updateChatMessages();
+    updateChatTitle();
     
     // Enable inputs
     elements.messageInput.disabled = false;
@@ -266,13 +352,47 @@ export function updateConversationList() {
             button.classList.add('active');
         }
         
-        // Format ID for display (remove the "conv-" prefix and timestamp)
-        const displayId = id.split('-').pop();
-        button.textContent = `Conversation ${displayId}`;
+        // Get display name (custom or default)
+        const displayName = state.conversationNames[id] || formatConversationId(id);
         
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = displayName;
+        button.appendChild(nameSpan);
+        
+        // Add action buttons
+        const actionsDiv = document.createElement('div');
+        
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+        editBtn.classList.add('edit-icon');
+        editBtn.title = 'Rename conversation';
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openRenameDialog(id);
+        });
+        actionsDiv.appendChild(editBtn);
+        
+        button.appendChild(actionsDiv);
+        
+        // Set click handler for conversation selection
         button.addEventListener('click', () => setActiveConversation(id));
         elements.conversationList.appendChild(button);
     });
+}
+
+/**
+ * Update the chat title
+ */
+export function updateChatTitle() {
+    if (!state.activeConversationId) {
+        elements.currentChatTitle.textContent = 'New Conversation';
+        return;
+    }
+    
+    const displayName = state.conversationNames[state.activeConversationId] || 
+                        formatConversationId(state.activeConversationId);
+    elements.currentChatTitle.textContent = displayName;
 }
 
 /**
@@ -284,7 +404,7 @@ export function updateChatMessages() {
     if (!state.activeConversationId || !state.messages[state.activeConversationId]) return;
     
     state.messages[state.activeConversationId].forEach(msg => {
-        appendMessage(msg.role, msg.content);
+        appendMessage(msg.role, msg.content, msg.timestamp);
     });
     
     // Scroll to bottom
@@ -295,26 +415,63 @@ export function updateChatMessages() {
  * Append a message to the chat UI
  * @param {string} role - Role of the message sender (user or assistant)
  * @param {string} content - Content of the message
+ * @param {number} timestamp - When the message was sent
  */
-export function appendMessage(role, content) {
+export function appendMessage(role, content, timestamp = Date.now()) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('message', role);
     
+    // Create message header with role and timestamp
     const header = document.createElement('div');
     header.classList.add('message-header');
-    header.textContent = role === 'user' ? 'You' : 'Claude';
     
-    const messageContent = document.createElement('div');
-    messageContent.classList.add('message-content');
-    messageContent.textContent = content;
+    const roleText = document.createElement('span');
+    roleText.textContent = role === 'user' ? 'You' : 'Claude';
+    header.appendChild(roleText);
+    
+    const timeText = document.createElement('span');
+    timeText.classList.add('message-timestamp');
+    timeText.textContent = formatTimestamp(timestamp);
+    header.appendChild(timeText);
     
     messageElement.appendChild(header);
+    
+    // Parse content as markdown for assistant messages
+    const messageContent = document.createElement('div');
+    messageContent.classList.add('message-content');
+    
+    if (role === 'assistant') {
+        messageContent.innerHTML = md.render(content);
+    } else {
+        messageContent.textContent = content;
+    }
+    
     messageElement.appendChild(messageContent);
+    
+    // Add message action buttons for copying
+    const actionsDiv = document.createElement('div');
+    actionsDiv.classList.add('message-actions');
+    
+    const copyBtn = document.createElement('button');
+    copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+    copyBtn.classList.add('message-action-btn');
+    copyBtn.title = 'Copy message';
+    copyBtn.addEventListener('click', () => copyToClipboard(content));
+    actionsDiv.appendChild(copyBtn);
+    
+    messageElement.appendChild(actionsDiv);
     
     elements.chatMessages.appendChild(messageElement);
     
     // Scroll to bottom
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    // Initialize syntax highlighting
+    if (role === 'assistant') {
+        document.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+    }
 }
 
 /**
@@ -341,4 +498,53 @@ export function appendSystemMessage(content) {
     
     // Scroll to bottom
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
+/**
+ * Open the rename dialog for a conversation
+ * @param {string} conversationId - ID of the conversation to rename
+ */
+export function openRenameDialog(conversationId) {
+    // Set current name in input
+    const currentName = state.conversationNames[conversationId] || '';
+    elements.renameInput.value = currentName;
+    
+    // Store the conversation ID being renamed
+    elements.renameDialog.dataset.conversationId = conversationId;
+    
+    // Show dialog
+    elements.renameDialog.classList.add('active');
+    elements.renameInput.focus();
+}
+
+/**
+ * Confirm and process the conversation rename
+ */
+export function confirmRename() {
+    const conversationId = elements.renameDialog.dataset.conversationId;
+    const newName = elements.renameInput.value.trim();
+    
+    if (conversationId) {
+        if (newName) {
+            // Store new name
+            state.conversationNames[conversationId] = newName;
+        } else {
+            // If empty, remove custom name
+            delete state.conversationNames[conversationId];
+        }
+        
+        // Save to localStorage
+        saveStateToStorage();
+        
+        // Update UI
+        updateConversationList();
+        if (conversationId === state.activeConversationId) {
+            updateChatTitle();
+        }
+        
+        showToast('Conversation renamed', 'success');
+    }
+    
+    // Close dialog
+    elements.renameDialog.classList.remove('active');
 }

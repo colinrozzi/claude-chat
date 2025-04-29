@@ -3,5 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "dependencies": {}
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --outfile=dist/bundle.js --format=esm",
+    "watch": "esbuild src/index.js --bundle --outfile=dist/bundle.js --format=esm --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.19.0"
+  }
 }

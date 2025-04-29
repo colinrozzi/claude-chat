@@ -1,32 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude Chat</title>
     <link rel="stylesheet" href="/styles.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <!-- Markdown-it for markdown parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
 </head>
 <body>
     <header>
-        <h1>Claude Chat</h1>
+        <div class="logo-container">
+            <img src="https://www.anthropic.com/images/claude_insignia_white.svg" alt="Claude Logo" class="logo">
+            <h1>Claude Chat</h1>
+        </div>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
     </header>
+    
     <div class="container">
         <div class="chat-container">
+            <!-- Sidebar with conversations -->
             <div class="conversations">
-                <button id="new-conversation" class="new-conversation-btn">New Conversation</button>
+                <div class="conversations-header">
+                    <span class="conversations-title">CONVERSATIONS</span>
+                </div>
+                <button id="new-conversation" class="new-conversation-btn">
+                    <i class="fas fa-plus"></i> New Chat
+                </button>
                 <div id="conversation-list">
                     <!-- Conversations will be added here -->
                 </div>
             </div>
+            
+            <!-- Main chat panel -->
             <div class="chat-panel">
+                <div class="chat-header">
+                    <div class="chat-title" id="current-chat-title">New Conversation</div>
+                </div>
+                
                 <div id="chat-messages" class="chat-messages">
                     <!-- Messages will be added here -->
                 </div>
+                
                 <div id="typing-indicator" class="typing-indicator">
                     <div class="dot"></div>
                     <div class="dot"></div>
                     <div class="dot"></div>
                 </div>
+                
                 <div class="chat-input">
                     <div style="flex: 1; display: flex; flex-direction: column;">
                         <textarea id="message-input" placeholder="Type your message here..." disabled></textarea>
@@ -35,11 +67,29 @@
                             <textarea id="system-prompt-input" placeholder="You are a helpful AI assistant..." disabled></textarea>
                         </div>
                     </div>
-                    <button id="send-button" disabled>Send</button>
+                    <button id="send-button" disabled>
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Toast notifications container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Rename dialog -->
+    <div id="rename-dialog" class="dialog-overlay">
+        <div class="dialog">
+            <div class="dialog-header">Rename Conversation</div>
+            <input type="text" id="rename-input" class="dialog-input" placeholder="Enter a name for this conversation">
+            <div class="dialog-buttons">
+                <button id="rename-cancel" class="dialog-button dialog-button-cancel">Cancel</button>
+                <button id="rename-confirm" class="dialog-button dialog-button-confirm">Rename</button>
+            </div>
+        </div>
+    </div>
+    
     <script type="module" src="/bundle.js"></script>
 </body>
 </html>
