@@ -5,6 +5,7 @@ import {
     truncateText, 
     copyToClipboard, 
     formatConversationId,
+    getConversationCreationTime,
     md,
     toggleTheme,
     initTheme
@@ -40,7 +41,12 @@ export function setupElements() {
         renameDialog: document.getElementById('rename-dialog'),
         renameInput: document.getElementById('rename-input'),
         renameCancel: document.getElementById('rename-cancel'),
-        renameConfirm: document.getElementById('rename-confirm')
+        renameConfirm: document.getElementById('rename-confirm'),
+        // New elements in right sidebar
+        chatCreatedTime: document.getElementById('chat-created-time'),
+        chatMessageCount: document.getElementById('chat-message-count'),
+        renameChatBtn: document.getElementById('rename-chat-btn'),
+        clearChatBtn: document.getElementById('clear-chat-btn')
     };
 }
 
@@ -63,7 +69,7 @@ export function setupEventHandlers() {
     // Theme toggling
     elements.themeToggle.addEventListener('click', toggleTheme);
     
-    // Rename dialog
+    // Rename dialog handlers
     elements.renameCancel.addEventListener('click', () => {
         elements.renameDialog.classList.remove('active');
     });
@@ -74,6 +80,21 @@ export function setupEventHandlers() {
     elements.renameDialog.addEventListener('click', (e) => {
         if (e.target === elements.renameDialog) {
             elements.renameDialog.classList.remove('active');
+        }
+    });
+    
+    // Right sidebar controls
+    elements.renameChatBtn.addEventListener('click', () => {
+        if (state.activeConversationId) {
+            openRenameDialog(state.activeConversationId);
+        }
+    });
+    
+    elements.clearChatBtn.addEventListener('click', () => {
+        if (state.activeConversationId) {
+            if (confirm('Are you sure you want to clear all messages in this chat?')) {
+                clearCurrentChat();
+            }
         }
     });
     
@@ -235,6 +256,8 @@ export function handleIncomingMessage(message) {
     // Update UI if this is the active conversation
     if (conversation_id === state.activeConversationId) {
         appendMessage('assistant', content);
+        // Update chat info to show new message count
+        updateChatInfo();
     }
     
     // Enable inputs
@@ -291,6 +314,9 @@ export function sendMessage() {
         timestamp: Date.now()
     });
     
+    // Update chat info to show new message count
+    updateChatInfo();
+    
     // Clear input
     elements.messageInput.value = '';
     
@@ -332,6 +358,7 @@ export function setActiveConversation(conversationId) {
     updateConversationList();
     updateChatMessages();
     updateChatTitle();
+    updateChatInfo();
     
     // Enable inputs
     elements.messageInput.disabled = false;
@@ -393,6 +420,31 @@ export function updateChatTitle() {
     const displayName = state.conversationNames[state.activeConversationId] || 
                         formatConversationId(state.activeConversationId);
     elements.currentChatTitle.textContent = displayName;
+}
+
+/**
+ * Update chat information in the sidebar
+ */
+export function updateChatInfo() {
+    // Update creation time
+    if (state.activeConversationId) {
+        const creationTime = getConversationCreationTime(state.activeConversationId);
+        elements.chatCreatedTime.textContent = creationTime || 'Unknown';
+        
+        // Update message count
+        const messageCount = state.messages[state.activeConversationId]?.length || 0;
+        elements.chatMessageCount.textContent = messageCount.toString();
+        
+        // Enable controls
+        elements.renameChatBtn.disabled = false;
+        elements.clearChatBtn.disabled = false;
+    } else {
+        // Reset values when no active conversation
+        elements.chatCreatedTime.textContent = '-';
+        elements.chatMessageCount.textContent = '0';
+        elements.renameChatBtn.disabled = true;
+        elements.clearChatBtn.disabled = true;
+    }
 }
 
 /**
@@ -547,4 +599,20 @@ export function confirmRename() {
     
     // Close dialog
     elements.renameDialog.classList.remove('active');
+}
+
+/**
+ * Clear all messages in the current chat
+ */
+export function clearCurrentChat() {
+    if (!state.activeConversationId) return;
+    
+    // Clear messages for this conversation
+    state.messages[state.activeConversationId] = [];
+    
+    // Update UI
+    updateChatMessages();
+    updateChatInfo();
+    
+    showToast('Chat cleared', 'success');
 }

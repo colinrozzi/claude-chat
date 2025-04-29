@@ -29,9 +29,9 @@
     </header>
     
     <div class="container">
-        <div class="chat-container">
-            <!-- Sidebar with conversations -->
-            <div class="conversations">
+        <div class="app-layout">
+            <!-- Left sidebar with conversations -->
+            <div class="conversations-sidebar">
                 <div class="conversations-header">
                     <span class="conversations-title">CONVERSATIONS</span>
                 </div>
@@ -60,16 +60,45 @@
                 </div>
                 
                 <div class="chat-input">
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <textarea id="message-input" placeholder="Type your message here..." disabled></textarea>
-                        <div class="system-prompt">
-                            <label for="system-prompt-input" class="system-prompt-label">System prompt (optional)</label>
-                            <textarea id="system-prompt-input" placeholder="You are a helpful AI assistant..." disabled></textarea>
-                        </div>
-                    </div>
+                    <textarea id="message-input" placeholder="Type your message here..." disabled></textarea>
                     <button id="send-button" disabled>
                         <i class="fas fa-paper-plane"></i> Send
                     </button>
+                </div>
+            </div>
+            
+            <!-- Right sidebar for chat controls -->
+            <div class="controls-sidebar">
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Chat Settings</h3>
+                    <div class="sidebar-content">
+                        <div class="system-prompt">
+                            <label for="system-prompt-input" class="system-prompt-label">System prompt</label>
+                            <textarea id="system-prompt-input" placeholder="You are a helpful AI assistant..." disabled></textarea>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h4 class="setting-title">Chat Information</h4>
+                            <div class="setting-item">
+                                <span class="setting-label">Created</span>
+                                <span class="setting-value" id="chat-created-time">-</span>
+                            </div>
+                            <div class="setting-item">
+                                <span class="setting-label">Messages</span>
+                                <span class="setting-value" id="chat-message-count">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h4 class="setting-title">Actions</h4>
+                            <button id="rename-chat-btn" class="control-btn" disabled>
+                                <i class="fas fa-edit"></i> Rename Chat
+                            </button>
+                            <button id="clear-chat-btn" class="control-btn" disabled>
+                                <i class="fas fa-trash"></i> Clear Chat
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

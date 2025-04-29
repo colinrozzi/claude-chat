@@ -752,14 +752,20 @@ fn send_to_anthropic(
     })
 }
 
-// Generate a unique conversation ID
+// Generate a unique conversation ID with timestamp
 fn generate_conversation_id(string: String) -> String {
+    // Get current timestamp
+    let timestamp = now();
+    
+    // Create a unique hash
     let mut sha1 = sha1::Sha1::new();
     sha1.update(string.as_bytes());
+    sha1.update(timestamp.to_string().as_bytes());
     let hash = sha1.finalize();
     let hash_str = hex::encode(hash);
 
-    format!("conv-{}", hash_str)
+    // Format with timestamp for better identification
+    format!("conv-{}-{}", timestamp, hash_str)
 }
 
 // Helper function to start the anthropic-proxy actor

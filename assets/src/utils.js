@@ -139,9 +139,44 @@ export function copyToClipboard(text) {
 export function formatConversationId(id) {
     if (!id) return 'New Chat';
     
-    // Extract the last part after the final dash
+    // Check if we have a timestamp in the ID (conv-timestamp-hash format)
+    const parts = id.split('-');
+    if (parts.length >= 3) {
+        // Try to extract timestamp
+        const timestamp = parseInt(parts[1]);
+        if (!isNaN(timestamp)) {
+            const date = new Date(timestamp);
+            // Format a readable name with date
+            return `Chat ${date.toLocaleDateString()}`;
+        }
+    }
+    
+    // Fallback to original format
     const lastPart = id.split('-').pop();
     return lastPart ? `Chat ${lastPart.substring(0, 6)}` : 'Chat';
+}
+
+/**
+ * Extract and format the creation time from a conversation ID
+ * @param {string} id - Conversation ID
+ * @returns {string} Formatted creation time or empty string
+ */
+export function getConversationCreationTime(id) {
+    if (!id) return '';
+    
+    // Check if we have a timestamp in the ID (conv-timestamp-hash format)
+    const parts = id.split('-');
+    if (parts.length >= 3) {
+        // Try to extract timestamp
+        const timestamp = parseInt(parts[1]);
+        if (!isNaN(timestamp)) {
+            const date = new Date(timestamp);
+            // Format a readable datetime
+            return date.toLocaleString();
+        }
+    }
+    
+    return '';
 }
 
 /**
