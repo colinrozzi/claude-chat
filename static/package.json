@@ -1,0 +1,14 @@
+{
+  "name": "claude-chat-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild js/index.js --bundle --outfile=bundle.js --format=esm",
+    "watch": "esbuild js/index.js --bundle --outfile=bundle.js --format=esm --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.19.0"
+  }
+}
