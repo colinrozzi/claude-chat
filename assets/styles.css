@@ -117,6 +117,58 @@ header {
   height: calc(100vh - 120px);
   gap: 1rem;
   max-width: 100%;
+  transition: grid-template-columns var(--transition-speed) ease;
+}
+
+/* Collapsed states */
+.app-layout.left-collapsed {
+  grid-template-columns: 40px 1fr 300px;
+}
+
+.app-layout.right-collapsed {
+  grid-template-columns: 280px 1fr 40px;
+}
+
+.app-layout.both-collapsed {
+  grid-template-columns: 40px 1fr 40px;
+}
+
+/* Sidebar toggle buttons */
+.sidebar-toggle {
+  position: absolute;
+  top: 10px;
+  border: none;
+  background-color: var(--primary-color);
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-speed), transform var(--transition-speed);
+  z-index: 10;
+}
+
+.sidebar-toggle:hover {
+  background-color: var(--primary-hover);
+}
+
+#toggle-left-sidebar {
+  right: -15px;
+}
+
+#toggle-right-sidebar {
+  left: -15px;
+}
+
+.left-collapsed #toggle-left-sidebar i {
+  transform: rotate(180deg);
+}
+
+.right-collapsed #toggle-right-sidebar i {
+  transform: rotate(180deg);
 }
 
 /* Sidebar for conversations */
@@ -128,7 +180,18 @@ header {
   padding: 1rem;
   overflow-y: auto;
   height: 100%;
-  transition: background-color var(--transition-speed) ease;
+  transition: all var(--transition-speed) ease;
+  position: relative;
+}
+
+.left-collapsed .conversations-sidebar > *:not(#toggle-left-sidebar) {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.left-collapsed .conversations-sidebar {
+  padding: 0.5rem;
+  overflow: hidden;
 }
 
 .conversations-header {
@@ -640,7 +703,18 @@ header {
   padding: 1rem;
   overflow-y: auto;
   height: 100%;
-  transition: background-color var(--transition-speed) ease;
+  transition: all var(--transition-speed) ease;
+  position: relative;
+}
+
+.right-collapsed .controls-sidebar > *:not(#toggle-right-sidebar) {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.right-collapsed .controls-sidebar {
+  padding: 0.5rem;
+  overflow: hidden;
 }
 
 .sidebar-section {

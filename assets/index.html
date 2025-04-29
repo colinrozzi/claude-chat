@@ -31,7 +31,10 @@
     <div class="container">
         <div class="app-layout">
             <!-- Left sidebar with conversations -->
-            <div class="conversations-sidebar">
+            <div class="conversations-sidebar" id="conversations-sidebar">
+                <button id="toggle-left-sidebar" class="sidebar-toggle" aria-label="Toggle conversations sidebar">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
                 <div class="conversations-header">
                     <span class="conversations-title">CONVERSATIONS</span>
                 </div>
@@ -68,7 +71,10 @@
             </div>
             
             <!-- Right sidebar for chat controls -->
-            <div class="controls-sidebar">
+            <div class="controls-sidebar" id="controls-sidebar">
+                <button id="toggle-right-sidebar" class="sidebar-toggle" aria-label="Toggle settings sidebar">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
                 <div class="sidebar-section">
                     <h3 class="sidebar-title">Chat Settings</h3>
                     <div class="sidebar-content">
@@ -119,6 +125,14 @@
         </div>
     </div>
     
-    <script type="module" src="/bundle.js"></script>
+    <script>
+    // Make elements and state available globally
+    window.elements = {};
+    window.layoutState = {
+        leftSidebarCollapsed: false,
+        rightSidebarCollapsed: false
+    };
+</script>
+<script type="module" src="/bundle.js"></script>
 </body>
 </html>
