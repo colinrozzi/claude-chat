@@ -128,12 +128,14 @@ impl Guest for Component {
         let (param,) = params;
         log(&format!("Init parameter: {}", param));
 
-        // Initialize state with the anthropic-proxy ID
+        // Initialize state (anthropic-proxy not yet connected)
         let chat_state = ChatState {
-            anthropic_proxy_id: "anthropic-proxy".to_string(), // Default to the fixed actor ID
+            anthropic_proxy_id: "placeholder-proxy-id".to_string(), // Will be updated when proxy is ready
             connections: HashMap::new(),
             conversations: HashMap::new(),
         };
+        
+        log("Note: Using placeholder responses until anthropic-proxy is set up");
 
         // Serialize state
         let state_bytes = match serde_json::to_vec(&chat_state) {
@@ -668,64 +670,26 @@ fn handle_client_message(
 }
 
 // Helper function to send a message to the Anthropic proxy
+// Currently using a filler response until the anthropic-proxy connection is set up
 fn send_to_anthropic(
-    proxy_id: &str,
-    conversation_id: &str,
+    _proxy_id: &str,
+    _conversation_id: &str,
     messages: &[ChatMessage],
-    system: Option<String>,
+    _system: Option<String>,
 ) -> Result<ChatMessage, String> {
-    log("Sending message to Anthropic proxy");
+    log("Using filler response instead of Anthropic proxy");
 
-    // Create request
-    let req = AnthropicRequest {
-        version: "1.0".to_string(),
-        operation_type: "ChatCompletion".to_string(),
-        request_id: format!("req-{}", conversation_id),
-        completion_request: Some(CompletionRequest {
-            model: "claude-3-7-sonnet-20250219".to_string(), // Default to latest model
-            messages: messages.to_vec(),
-            max_tokens: Some(4096),
-            temperature: Some(0.7),
-            system: system,
-            top_p: None,
-            anthropic_version: None,
-            additional_params: None,
-        }),
-        params: None,
-    };
+    // Get the latest user message for context
+    let latest_user_message = messages.iter()
+        .filter(|msg| msg.role == "user")
+        .last()
+        .map(|msg| msg.content.clone())
+        .unwrap_or_default();
+    
+    // Create a simple filler response that acknowledges the message
+    let filler_content = format!("This is a temporary filler response. You said: '{}'. Once the anthropic-proxy connection is set up, this will be replaced with actual Claude responses.", latest_user_message);
 
-    // Serialize request
-    let request_bytes = match serde_json::to_vec(&req) {
-        Ok(bytes) => bytes,
-        Err(e) => return Err(format!("Failed to serialize request: {}", e)),
-    };
-
-    // Send request
-    let response_bytes = match request(proxy_id, &request_bytes) {
-        Ok(bytes) => bytes,
-        Err(e) => return Err(format!("Failed to send request: {}", e)),
-    };
-
-    // Parse response
-    let response: AnthropicResponse = match serde_json::from_slice(&response_bytes) {
-        Ok(resp) => resp,
-        Err(e) => return Err(format!("Failed to parse response: {}", e)),
-    };
-
-    // Check status
-    if response.status != "Success" {
-        return Err(response
-            .error
-            .unwrap_or_else(|| "Unknown error".to_string()));
-    }
-
-    // Get completion
-    let completion = match response.completion {
-        Some(comp) => comp,
-        None => return Err("No completion in response".to_string()),
-    };
-
-    // Create assistant message
+    // Create assistant message with current timestamp
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -733,7 +697,7 @@ fn send_to_anthropic(
 
     Ok(ChatMessage {
         role: "assistant".to_string(),
-        content: completion.content,
+        content: filler_content,
         timestamp,
     })
 }
