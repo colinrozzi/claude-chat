@@ -1,5 +1,5 @@
 name = "claude-chat"
-component_path = "/nix/store/2ccdi5r66l8s4lpwyif3flrznhaw8ixr-claude-chat-0.1.0/lib/claude-chat.wasm"
+component_path = "/nix/store/aw9n3cmv5ydkh50jcpbw8mzhsx4qdjnz-claude-chat-0.1.0/lib/claude-chat.wasm"
 short_description = "An HTTP server actor with REST API and WebSocket support for Claude chat"
 
 [[handlers]]
@@ -17,4 +17,8 @@ type = "timing"
 
 [handlers.config]
 
+[[handlers]]
+type = "supervisor"
+
+[handlers.config]
 

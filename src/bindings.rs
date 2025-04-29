@@ -168,6 +168,39 @@ pub mod ntwk {
                     f.debug_struct("Chain").field("events", &self.events).finish()
                 }
             }
+            /// # Event in a chain
+            ///
+            /// Represents a single event in an actor's chain (audit log).
+            ///
+            /// ## Fields
+            ///
+            /// * `hash` - Unique identifier/hash for this event
+            /// * `parent-hash` - Hash of the previous event in the chain (None for first event)
+            /// * `event-type` - Type of event (e.g., "wasm", "http", "message")
+            /// * `data` - Serialized event data
+            /// * `timestamp` - Timestamp when the event occurred (milliseconds since epoch)
+            #[derive(Clone)]
+            pub struct ChainEvent {
+                pub hash: _rt::Vec<u8>,
+                pub parent_hash: Option<_rt::Vec<u8>>,
+                pub event_type: _rt::String,
+                pub data: _rt::Vec<u8>,
+                pub timestamp: u64,
+            }
+            impl ::core::fmt::Debug for ChainEvent {
+                fn fmt(
+                    &self,
+                    f: &mut ::core::fmt::Formatter<'_>,
+                ) -> ::core::fmt::Result {
+                    f.debug_struct("ChainEvent")
+                        .field("hash", &self.hash)
+                        .field("parent-hash", &self.parent_hash)
+                        .field("event-type", &self.event_type)
+                        .field("data", &self.data)
+                        .field("timestamp", &self.timestamp)
+                        .finish()
+                }
+            }
         }
         /// # Runtime Interface
         ///
@@ -2793,6 +2826,1013 @@ pub mod ntwk {
                         _ => _rt::invalid_enum_discriminant(),
                     };
                     result7
+                }
+            }
+        }
+        /// # Timing Interface
+        ///
+        /// Provides time-related functions for actors to get the current time and control execution timing.
+        ///
+        /// ## Purpose
+        ///
+        /// The timing interface gives actors access to time information and timing control
+        /// within the Theater runtime. It allows actors to:
+        /// - Get the current time
+        /// - Pause execution for specific durations
+        /// - Delay execution until specific points in time
+        ///
+        /// ## Example
+        ///
+        /// ```rust
+        /// use ntwk::theater::timing;
+        ///
+        /// async fn example() -> Result<(), String> {
+        ///     // Get the current time
+        ///     let now = timing::now();
+        ///     println!("Current time: {}", now);
+        ///
+        ///     // Sleep for 500 milliseconds
+        ///     timing::sleep(500)?;
+        ///
+        ///     // Wait until a specific future time
+        ///     let five_seconds_later = now + 5000;
+        ///     timing::deadline(five_seconds_later)?;
+        ///
+        ///     Ok(())
+        /// }
+        /// ```
+        ///
+        /// ## Security
+        ///
+        /// The timing operations are managed by the Theater runtime, which may enforce:
+        /// - Rate limits on sleep operations to prevent resource exhaustion
+        /// - Maximum duration limits to prevent indefinite blocking
+        /// - Tracking and reporting of sleep patterns in the event chain
+        ///
+        /// ## Implementation Notes
+        ///
+        /// When actors call timing functions, the WebAssembly execution is suspended without
+        /// blocking the entire runtime. This allows the runtime to continue processing other
+        /// actors while an actor is waiting.
+        #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
+        pub mod timing {
+            #[used]
+            #[doc(hidden)]
+            static __FORCE_SECTION_REF: fn() = super::super::super::__link_custom_section_describing_imports;
+            use super::super::super::_rt;
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Get current time
+            ///
+            /// Returns the current time in milliseconds since the UNIX epoch (January 1, 1970 UTC).
+            ///
+            /// ## Returns
+            ///
+            /// The current timestamp in milliseconds
+            ///
+            /// ## Example
+            ///
+            /// ```rust
+            /// use ntwk::theater::timing;
+            ///
+            /// // Get current timestamp
+            /// let now = timing::now();
+            ///
+            /// // Convert to seconds
+            /// let seconds_since_epoch = now / 1000;
+            /// ```
+            ///
+            /// ## Implementation Notes
+            ///
+            /// The time value is consistent across the entire Theater runtime, ensuring that
+            /// all actors have a synchronized view of time.
+            pub fn now() -> u64 {
+                unsafe {
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/timing")]
+                    unsafe extern "C" {
+                        #[link_name = "now"]
+                        fn wit_import0() -> i64;
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import0() -> i64 {
+                        unreachable!()
+                    }
+                    let ret = unsafe { wit_import0() };
+                    ret as u64
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Pause execution
+            ///
+            /// Pauses the execution of the actor for the specified number of milliseconds.
+            ///
+            /// ## Parameters
+            ///
+            /// * `duration` - Number of milliseconds to sleep
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(_)` - Sleep completed successfully
+            /// * `Err(string)` - Error message if sleep was interrupted or not allowed
+            ///
+            /// ## Example
+            ///
+            /// ```rust
+            /// use ntwk::theater::timing;
+            ///
+            /// // Sleep for 1 second
+            /// timing::sleep(1000)?;
+            ///
+            /// // Sleep for 100ms
+            /// timing::sleep(100)?;
+            /// ```
+            ///
+            /// ## Security
+            ///
+            /// The runtime may enforce limits on how long an actor can sleep to prevent
+            /// resource exhaustion or denial of service. Sleep operations are recorded
+            /// in the actor's event chain.
+            pub fn sleep(duration: u64) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let ptr0 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/timing")]
+                    unsafe extern "C" {
+                        #[link_name = "sleep"]
+                        fn wit_import1(_: i64, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import1(_: i64, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import1(_rt::as_i64(&duration), ptr0) };
+                    let l2 = i32::from(*ptr0.add(0).cast::<u8>());
+                    let result6 = match l2 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l3 = *ptr0
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l4 = *ptr0
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len5 = l4;
+                                let bytes5 = _rt::Vec::from_raw_parts(
+                                    l3.cast(),
+                                    len5,
+                                    len5,
+                                );
+                                _rt::string_lift(bytes5)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result6
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Wait until specific time
+            ///
+            /// Pauses execution until the specified timestamp is reached.
+            ///
+            /// ## Parameters
+            ///
+            /// * `timestamp` - Target time in milliseconds since UNIX epoch
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(_)` - Deadline was reached successfully
+            /// * `Err(string)` - Error message if the wait was interrupted or not allowed
+            ///
+            /// ## Example
+            ///
+            /// ```rust
+            /// use ntwk::theater::timing;
+            ///
+            /// // Wait until a specific time
+            /// let target_time = 1672531200000; // Jan 1, 2023 00:00:00 UTC
+            /// timing::deadline(target_time)?;
+            ///
+            /// // Wait until 10 seconds from now
+            /// let now = timing::now();
+            /// let ten_seconds_later = now + 10000;
+            /// timing::deadline(ten_seconds_later)?;
+            /// ```
+            ///
+            /// ## Implementation Notes
+            ///
+            /// - If the specified timestamp is in the past, the function returns immediately
+            /// - The runtime may reject excessive deadline values that are too far in the future
+            /// - Deadline operations are recorded in the actor's event chain
+            pub fn deadline(timestamp: u64) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let ptr0 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/timing")]
+                    unsafe extern "C" {
+                        #[link_name = "deadline"]
+                        fn wit_import1(_: i64, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import1(_: i64, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import1(_rt::as_i64(&timestamp), ptr0) };
+                    let l2 = i32::from(*ptr0.add(0).cast::<u8>());
+                    let result6 = match l2 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l3 = *ptr0
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l4 = *ptr0
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len5 = l4;
+                                let bytes5 = _rt::Vec::from_raw_parts(
+                                    l3.cast(),
+                                    len5,
+                                    len5,
+                                );
+                                _rt::string_lift(bytes5)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result6
+                }
+            }
+        }
+        /// # Supervisor Interface
+        ///
+        /// Defines the interface for actor supervision in the Theater system. This allows parent actors
+        /// to manage the lifecycle and monitor the state of their child actors.
+        ///
+        /// ## Purpose
+        ///
+        /// The supervisor interface enables an important part of the Theater architecture: the supervision
+        /// tree. Similar to Erlang's supervision system, this allows actors to monitor and manage other
+        /// actors, creating a hierarchical structure that enhances fault tolerance and system management.
+        ///
+        /// Through this interface, parent actors can:
+        /// - Spawn new child actors
+        /// - Monitor child actor status and state
+        /// - Restart failed child actors
+        /// - Access child actor event history
+        ///
+        /// ## Example
+        ///
+        /// In a typical Theater actor, supervision capabilities would be used like this:
+        ///
+        /// ```rust
+        /// use ntwk::theater::supervisor;
+        ///
+        /// // Spawn a new child actor from a manifest
+        /// let child_id = supervisor::spawn("child_manifest.toml", None)?;
+        ///
+        /// // Later, restart the child if needed
+        /// supervisor::restart_child(child_id)?;
+        ///
+        /// // Get the current state of the child
+        /// let state = supervisor::get_child_state(child_id)?;
+        /// ```
+        ///
+        /// ## Security
+        ///
+        /// The supervisor interface has significant privileges, as it can control other actors and
+        /// access their state. The Theater runtime ensures that an actor can only supervise its
+        /// direct children, enforcing proper hierarchy boundaries.
+        ///
+        /// ## Implementation Notes
+        ///
+        /// The interface uses string-based actor identifiers and returns results that can contain
+        /// errors as strings. This allows for human-readable error messages and flexible actor
+        /// identification across the system.
+        #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
+        pub mod supervisor {
+            #[used]
+            #[doc(hidden)]
+            static __FORCE_SECTION_REF: fn() = super::super::super::__link_custom_section_describing_imports;
+            use super::super::super::_rt;
+            pub type ChainEvent = super::super::super::ntwk::theater::types::ChainEvent;
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Spawn a new child actor
+            ///
+            /// Creates and starts a new actor from the specified manifest file.
+            ///
+            /// ## Parameters
+            ///
+            /// * `manifest` - Path or content of the manifest file describing the actor
+            /// * `init-bytes` - Optional initial state for the actor (serialized bytes)
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(string)` - ID of the newly created actor
+            /// * `Err(string)` - Error message if spawning fails
+            pub fn spawn(
+                manifest: &str,
+                init_bytes: Option<&[u8]>,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = manifest;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let (result2_0, result2_1, result2_2) = match init_bytes {
+                        Some(e) => {
+                            let vec1 = e;
+                            let ptr1 = vec1.as_ptr().cast::<u8>();
+                            let len1 = vec1.len();
+                            (1i32, ptr1.cast_mut(), len1)
+                        }
+                        None => (0i32, ::core::ptr::null_mut(), 0usize),
+                    };
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "spawn"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: i32,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: i32,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            result2_0,
+                            result2_1,
+                            result2_2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result12 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l9 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l10 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len11 = l10;
+                                let bytes11 = _rt::Vec::from_raw_parts(
+                                    l9.cast(),
+                                    len11,
+                                    len11,
+                                );
+                                _rt::string_lift(bytes11)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result12
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Resume a previously stopped child actor
+            ///
+            /// Restarts a previously created actor using an existing manifest but with a potentially
+            /// new initial state.
+            ///
+            /// ## Parameters
+            ///
+            /// * `manifest` - Path or content of the manifest file describing the actor
+            /// * `init-state` - Optional new initial state for the actor (serialized bytes)
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(string)` - ID of the resumed actor
+            /// * `Err(string)` - Error message if resuming fails
+            pub fn resume(
+                manifest: &str,
+                init_state: Option<&[u8]>,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = manifest;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let (result2_0, result2_1, result2_2) = match init_state {
+                        Some(e) => {
+                            let vec1 = e;
+                            let ptr1 = vec1.as_ptr().cast::<u8>();
+                            let len1 = vec1.len();
+                            (1i32, ptr1.cast_mut(), len1)
+                        }
+                        None => (0i32, ::core::ptr::null_mut(), 0usize),
+                    };
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "resume"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: i32,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: i32,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            result2_0,
+                            result2_1,
+                            result2_2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result12 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l9 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l10 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len11 = l10;
+                                let bytes11 = _rt::Vec::from_raw_parts(
+                                    l9.cast(),
+                                    len11,
+                                    len11,
+                                );
+                                _rt::string_lift(bytes11)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result12
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # List all child actors
+            ///
+            /// Retrieves a list of all children directly managed by this actor.
+            ///
+            /// ## Returns
+            ///
+            /// * `list<string>` - IDs of all child actors
+            pub fn list_children() -> _rt::Vec<_rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 2 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 2
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let ptr0 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "list-children"]
+                        fn wit_import1(_: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import1(_: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import1(ptr0) };
+                    let l2 = *ptr0.add(0).cast::<*mut u8>();
+                    let l3 = *ptr0
+                        .add(::core::mem::size_of::<*const u8>())
+                        .cast::<usize>();
+                    let base7 = l2;
+                    let len7 = l3;
+                    let mut result7 = _rt::Vec::with_capacity(len7);
+                    for i in 0..len7 {
+                        let base = base7
+                            .add(i * (2 * ::core::mem::size_of::<*const u8>()));
+                        let e7 = {
+                            let l4 = *base.add(0).cast::<*mut u8>();
+                            let l5 = *base
+                                .add(::core::mem::size_of::<*const u8>())
+                                .cast::<usize>();
+                            let len6 = l5;
+                            let bytes6 = _rt::Vec::from_raw_parts(l4.cast(), len6, len6);
+                            _rt::string_lift(bytes6)
+                        };
+                        result7.push(e7);
+                    }
+                    _rt::cabi_dealloc(
+                        base7,
+                        len7 * (2 * ::core::mem::size_of::<*const u8>()),
+                        ::core::mem::size_of::<*const u8>(),
+                    );
+                    let result8 = result7;
+                    result8
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Stop a specific child actor
+            ///
+            /// Gracefully stops a child actor identified by its ID.
+            ///
+            /// ## Parameters
+            ///
+            /// * `child-id` - ID of the child actor to stop
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(_)` - Child was successfully stopped
+            /// * `Err(string)` - Error message if stopping fails
+            pub fn stop_child(child_id: &str) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = child_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "stop-child"]
+                        fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import2(_: *mut u8, _: usize, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import2(ptr0.cast_mut(), len0, ptr1) };
+                    let l3 = i32::from(*ptr1.add(0).cast::<u8>());
+                    let result7 = match l3 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l4 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l5 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len6 = l5;
+                                let bytes6 = _rt::Vec::from_raw_parts(
+                                    l4.cast(),
+                                    len6,
+                                    len6,
+                                );
+                                _rt::string_lift(bytes6)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result7
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Restart a specific child actor
+            ///
+            /// Stops and then starts a child actor, maintaining its ID but resetting its state.
+            ///
+            /// ## Parameters
+            ///
+            /// * `child-id` - ID of the child actor to restart
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(_)` - Child was successfully restarted
+            /// * `Err(string)` - Error message if restarting fails
+            pub fn restart_child(child_id: &str) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = child_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "restart-child"]
+                        fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import2(_: *mut u8, _: usize, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import2(ptr0.cast_mut(), len0, ptr1) };
+                    let l3 = i32::from(*ptr1.add(0).cast::<u8>());
+                    let result7 = match l3 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l4 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l5 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len6 = l5;
+                                let bytes6 = _rt::Vec::from_raw_parts(
+                                    l4.cast(),
+                                    len6,
+                                    len6,
+                                );
+                                _rt::string_lift(bytes6)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result7
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Get the latest state of a child actor
+            ///
+            /// Retrieves the current serialized state of a specified child actor.
+            ///
+            /// ## Parameters
+            ///
+            /// * `child-id` - ID of the child actor
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(option<list<u8>>)` - Current state of the child (None if no state)
+            /// * `Err(string)` - Error message if retrieving state fails
+            pub fn get_child_state(
+                child_id: &str,
+            ) -> Result<Option<_rt::Vec<u8>>, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 4 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 4
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = child_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "get-child-state"]
+                        fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import2(_: *mut u8, _: usize, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import2(ptr0.cast_mut(), len0, ptr1) };
+                    let l3 = i32::from(*ptr1.add(0).cast::<u8>());
+                    let result11 = match l3 {
+                        0 => {
+                            let e = {
+                                let l4 = i32::from(
+                                    *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
+                                );
+                                match l4 {
+                                    0 => None,
+                                    1 => {
+                                        let e = {
+                                            let l5 = *ptr1
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l6 = *ptr1
+                                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            let len7 = l6;
+                                            _rt::Vec::from_raw_parts(l5.cast(), len7, len7)
+                                        };
+                                        Some(e)
+                                    }
+                                    _ => _rt::invalid_enum_discriminant(),
+                                }
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l8 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l9 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len10 = l9;
+                                let bytes10 = _rt::Vec::from_raw_parts(
+                                    l8.cast(),
+                                    len10,
+                                    len10,
+                                );
+                                _rt::string_lift(bytes10)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result11
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            /// # Get event history of a child actor
+            ///
+            /// Retrieves the chain of events that have occurred in a child actor,
+            /// providing visibility into its execution history.
+            ///
+            /// ## Parameters
+            ///
+            /// * `child-id` - ID of the child actor
+            ///
+            /// ## Returns
+            ///
+            /// * `Ok(list<chain-event>)` - List of events in the child's chain
+            /// * `Err(string)` - Error message if retrieving events fails
+            pub fn get_child_events(
+                child_id: &str,
+            ) -> Result<_rt::Vec<ChainEvent>, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = child_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "ntwk:theater/supervisor")]
+                    unsafe extern "C" {
+                        #[link_name = "get-child-events"]
+                        fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import2(_: *mut u8, _: usize, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import2(ptr0.cast_mut(), len0, ptr1) };
+                    let l3 = i32::from(*ptr1.add(0).cast::<u8>());
+                    let result24 = match l3 {
+                        0 => {
+                            let e = {
+                                let l4 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l5 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let base20 = l4;
+                                let len20 = l5;
+                                let mut result20 = _rt::Vec::with_capacity(len20);
+                                for i in 0..len20 {
+                                    let base = base20
+                                        .add(i * (16 + 8 * ::core::mem::size_of::<*const u8>()));
+                                    let e20 = {
+                                        let l6 = *base.add(0).cast::<*mut u8>();
+                                        let l7 = *base
+                                            .add(::core::mem::size_of::<*const u8>())
+                                            .cast::<usize>();
+                                        let len8 = l7;
+                                        let l9 = i32::from(
+                                            *base
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<u8>(),
+                                        );
+                                        let l13 = *base
+                                            .add(5 * ::core::mem::size_of::<*const u8>())
+                                            .cast::<*mut u8>();
+                                        let l14 = *base
+                                            .add(6 * ::core::mem::size_of::<*const u8>())
+                                            .cast::<usize>();
+                                        let len15 = l14;
+                                        let bytes15 = _rt::Vec::from_raw_parts(
+                                            l13.cast(),
+                                            len15,
+                                            len15,
+                                        );
+                                        let l16 = *base
+                                            .add(7 * ::core::mem::size_of::<*const u8>())
+                                            .cast::<*mut u8>();
+                                        let l17 = *base
+                                            .add(8 * ::core::mem::size_of::<*const u8>())
+                                            .cast::<usize>();
+                                        let len18 = l17;
+                                        let l19 = *base
+                                            .add(8 + 8 * ::core::mem::size_of::<*const u8>())
+                                            .cast::<i64>();
+                                        super::super::super::ntwk::theater::types::ChainEvent {
+                                            hash: _rt::Vec::from_raw_parts(l6.cast(), len8, len8),
+                                            parent_hash: match l9 {
+                                                0 => None,
+                                                1 => {
+                                                    let e = {
+                                                        let l10 = *base
+                                                            .add(3 * ::core::mem::size_of::<*const u8>())
+                                                            .cast::<*mut u8>();
+                                                        let l11 = *base
+                                                            .add(4 * ::core::mem::size_of::<*const u8>())
+                                                            .cast::<usize>();
+                                                        let len12 = l11;
+                                                        _rt::Vec::from_raw_parts(l10.cast(), len12, len12)
+                                                    };
+                                                    Some(e)
+                                                }
+                                                _ => _rt::invalid_enum_discriminant(),
+                                            },
+                                            event_type: _rt::string_lift(bytes15),
+                                            data: _rt::Vec::from_raw_parts(l16.cast(), len18, len18),
+                                            timestamp: l19 as u64,
+                                        }
+                                    };
+                                    result20.push(e20);
+                                }
+                                _rt::cabi_dealloc(
+                                    base20,
+                                    len20 * (16 + 8 * ::core::mem::size_of::<*const u8>()),
+                                    8,
+                                );
+                                result20
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l21 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l22 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len23 = l22;
+                                let bytes23 = _rt::Vec::from_raw_parts(
+                                    l21.cast(),
+                                    len23,
+                                    len23,
+                                );
+                                _rt::string_lift(bytes23)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result24
                 }
             }
         }
@@ -5498,18 +6538,18 @@ pub(crate) use __export_claude_chat_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 3943] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xe5\x1d\x01A\x02\x01\
-A#\x01B\x19\x01p}\x04\0\x04json\x03\0\0\x01p}\x01k\x02\x04\0\x05state\x03\0\x03\x01\
-s\x04\0\x08actor-id\x03\0\x05\x01s\x04\0\x0achannel-id\x03\0\x07\x01k\x01\x01r\x02\
-\x08accepted\x7f\x07message\x09\x04\0\x0echannel-accept\x03\0\x0a\x01kw\x01r\x03\
-\x0aevent-types\x06parent\x0c\x04data\x01\x04\0\x05event\x03\0\x0d\x01r\x02\x04h\
-ashw\x05event\x0e\x04\0\x0ameta-event\x03\0\x0f\x01p\x10\x01r\x01\x06events\x11\x04\
-\0\x05chain\x03\0\x12\x01k\x02\x01r\x05\x04hash\x02\x0bparent-hash\x14\x0aevent-\
-types\x04data\x02\x09timestampw\x04\0\x0bchain-event\x03\0\x15\x01q\x09\x11opera\
-tion-timeout\x01w\0\x0echannel-closed\0\0\x0dshutting-down\0\0\x12function-not-f\
-ound\x01s\0\x0dtype-mismatch\x01s\0\x08internal\x01\x16\0\x13serialization-error\
-\0\0\x16update-component-error\x01s\0\x06paused\0\0\x04\0\x0bactor-error\x03\0\x17\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 4363] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x89!\x01A\x02\x01A(\x01\
+B\x19\x01p}\x04\0\x04json\x03\0\0\x01p}\x01k\x02\x04\0\x05state\x03\0\x03\x01s\x04\
+\0\x08actor-id\x03\0\x05\x01s\x04\0\x0achannel-id\x03\0\x07\x01k\x01\x01r\x02\x08\
+accepted\x7f\x07message\x09\x04\0\x0echannel-accept\x03\0\x0a\x01kw\x01r\x03\x0a\
+event-types\x06parent\x0c\x04data\x01\x04\0\x05event\x03\0\x0d\x01r\x02\x04hashw\
+\x05event\x0e\x04\0\x0ameta-event\x03\0\x0f\x01p\x10\x01r\x01\x06events\x11\x04\0\
+\x05chain\x03\0\x12\x01k\x02\x01r\x05\x04hash\x02\x0bparent-hash\x14\x0aevent-ty\
+pes\x04data\x02\x09timestampw\x04\0\x0bchain-event\x03\0\x15\x01q\x09\x11operati\
+on-timeout\x01w\0\x0echannel-closed\0\0\x0dshutting-down\0\0\x12function-not-fou\
+nd\x01s\0\x0dtype-mismatch\x01s\0\x08internal\x01\x16\0\x13serialization-error\0\
+\0\x16update-component-error\x01s\0\x06paused\0\0\x04\0\x0bactor-error\x03\0\x17\
 \x03\0\x12ntwk:theater/types\x05\0\x02\x03\0\0\x04json\x02\x03\0\0\x05chain\x02\x03\
 \0\0\x08actor-id\x01B\x0a\x02\x03\x02\x01\x01\x04\0\x04json\x03\0\0\x02\x03\x02\x01\
 \x02\x04\0\x05chain\x03\0\x02\x02\x03\x02\x01\x03\x04\0\x08actor-id\x03\0\x04\x01\
@@ -5562,36 +6602,46 @@ msg\x01\0\x06\x04\0\x0fsend-on-channel\x01\x0c\x01@\x01\x0achannel-id\x05\0\x06\
 \0\x0dclose-channel\x01\x0d\x01ps\x01@\0\0\x0e\x04\0\x19list-outstanding-request\
 s\x01\x0f\x01@\x02\x0arequest-ids\x08response\x01\0\x06\x04\0\x12respond-to-requ\
 est\x01\x10\x01@\x01\x0arequest-ids\0\x06\x04\0\x0ecancel-request\x01\x11\x03\0\x20\
-ntwk:theater/message-server-host\x05\x11\x02\x03\0\0\x05event\x02\x03\0\0\x0echa\
-nnel-accept\x01B\x1e\x02\x03\x02\x01\x01\x04\0\x04json\x03\0\0\x02\x03\x02\x01\x12\
-\x04\0\x05event\x03\0\x02\x02\x03\x02\x01\x10\x04\0\x0achannel-id\x03\0\x04\x02\x03\
-\x02\x01\x13\x04\0\x0echannel-accept\x03\0\x06\x01k\x01\x01o\x01\x01\x01o\x01\x08\
-\x01j\x01\x0a\x01s\x01@\x02\x05state\x08\x06params\x09\0\x0b\x04\0\x0bhandle-sen\
-d\x01\x0c\x01o\x02s\x01\x01o\x02\x08\x0a\x01j\x01\x0e\x01s\x01@\x02\x05state\x08\
-\x06params\x0d\0\x0f\x04\0\x0ehandle-request\x01\x10\x01o\x01\x07\x01o\x02\x08\x11\
-\x01j\x01\x12\x01s\x01@\x02\x05state\x08\x06params\x09\0\x13\x04\0\x13handle-cha\
-nnel-open\x01\x14\x01o\x02\x05\x01\x01@\x02\x05state\x08\x06params\x15\0\x0b\x04\
-\0\x16handle-channel-message\x01\x16\x01o\x01\x05\x01@\x02\x05state\x08\x06param\
-s\x17\0\x0b\x04\0\x14handle-channel-close\x01\x18\x04\0\"ntwk:theater/message-se\
-rver-client\x05\x14\x01B\x07\x02\x03\x02\x01\x07\x04\0\x05state\x03\0\0\x01o\x01\
-s\x01o\x01\x01\x01j\x01\x03\x01s\x01@\x02\x05state\x01\x06params\x02\0\x04\x04\0\
-\x04init\x01\x05\x04\0\x12ntwk:theater/actor\x05\x15\x02\x03\0\x02\x11middleware\
--result\x02\x03\0\x04\x0ahandler-id\x01B'\x02\x03\x02\x01\x07\x04\0\x05state\x03\
-\0\0\x02\x03\x02\x01\x08\x04\0\x0chttp-request\x03\0\x02\x02\x03\x02\x01\x09\x04\
-\0\x0dhttp-response\x03\0\x04\x02\x03\x02\x01\x0d\x04\0\x11websocket-message\x03\
-\0\x06\x02\x03\x02\x01\x16\x04\0\x11middleware-result\x03\0\x08\x02\x03\x02\x01\x17\
-\x04\0\x0ahandler-id\x03\0\x0a\x01o\x02\x0b\x03\x01o\x01\x05\x01o\x02\x01\x0d\x01\
-j\x01\x0e\x01s\x01@\x02\x05state\x01\x06params\x0c\0\x0f\x04\0\x0ehandle-request\
-\x01\x10\x01o\x01\x09\x01o\x02\x01\x11\x01j\x01\x12\x01s\x01@\x02\x05state\x01\x06\
-params\x0c\0\x13\x04\0\x11handle-middleware\x01\x14\x01ks\x01o\x04\x0bws\x15\x01\
-o\x01\x01\x01j\x01\x17\x01s\x01@\x02\x05state\x01\x06params\x16\0\x18\x04\0\x18h\
-andle-websocket-connect\x01\x19\x01o\x03\x0bw\x07\x01p\x07\x01o\x01\x1b\x01o\x02\
-\x01\x1c\x01j\x01\x1d\x01s\x01@\x02\x05state\x01\x06params\x1a\0\x1e\x04\0\x18ha\
-ndle-websocket-message\x01\x1f\x01o\x02\x0bw\x01@\x02\x05state\x01\x06params\x20\
-\0\x18\x04\0\x1bhandle-websocket-disconnect\x01!\x04\0\x1antwk:theater/http-hand\
-lers\x05\x18\x04\0\x18ntwk:theater/claude-chat\x04\0\x0b\x11\x01\0\x0bclaude-cha\
-t\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10\
-wit-bindgen-rust\x060.41.0";
+ntwk:theater/message-server-host\x05\x11\x01B\x07\x01@\0\0w\x04\0\x03now\x01\0\x01\
+j\0\x01s\x01@\x01\x08durationw\0\x01\x04\0\x05sleep\x01\x02\x01@\x01\x09timestam\
+pw\0\x01\x04\0\x08deadline\x01\x03\x03\0\x13ntwk:theater/timing\x05\x12\x02\x03\0\
+\0\x0bchain-event\x01B\x17\x02\x03\x02\x01\x13\x04\0\x0bchain-event\x03\0\0\x01p\
+}\x01k\x02\x01j\x01s\x01s\x01@\x02\x08manifests\x0ainit-bytes\x03\0\x04\x04\0\x05\
+spawn\x01\x05\x01@\x02\x08manifests\x0ainit-state\x03\0\x04\x04\0\x06resume\x01\x06\
+\x01ps\x01@\0\0\x07\x04\0\x0dlist-children\x01\x08\x01j\0\x01s\x01@\x01\x08child\
+-ids\0\x09\x04\0\x0astop-child\x01\x0a\x04\0\x0drestart-child\x01\x0a\x01j\x01\x03\
+\x01s\x01@\x01\x08child-ids\0\x0b\x04\0\x0fget-child-state\x01\x0c\x01p\x01\x01j\
+\x01\x0d\x01s\x01@\x01\x08child-ids\0\x0e\x04\0\x10get-child-events\x01\x0f\x03\0\
+\x17ntwk:theater/supervisor\x05\x14\x02\x03\0\0\x05event\x02\x03\0\0\x0echannel-\
+accept\x01B\x1e\x02\x03\x02\x01\x01\x04\0\x04json\x03\0\0\x02\x03\x02\x01\x15\x04\
+\0\x05event\x03\0\x02\x02\x03\x02\x01\x10\x04\0\x0achannel-id\x03\0\x04\x02\x03\x02\
+\x01\x16\x04\0\x0echannel-accept\x03\0\x06\x01k\x01\x01o\x01\x01\x01o\x01\x08\x01\
+j\x01\x0a\x01s\x01@\x02\x05state\x08\x06params\x09\0\x0b\x04\0\x0bhandle-send\x01\
+\x0c\x01o\x02s\x01\x01o\x02\x08\x0a\x01j\x01\x0e\x01s\x01@\x02\x05state\x08\x06p\
+arams\x0d\0\x0f\x04\0\x0ehandle-request\x01\x10\x01o\x01\x07\x01o\x02\x08\x11\x01\
+j\x01\x12\x01s\x01@\x02\x05state\x08\x06params\x09\0\x13\x04\0\x13handle-channel\
+-open\x01\x14\x01o\x02\x05\x01\x01@\x02\x05state\x08\x06params\x15\0\x0b\x04\0\x16\
+handle-channel-message\x01\x16\x01o\x01\x05\x01@\x02\x05state\x08\x06params\x17\0\
+\x0b\x04\0\x14handle-channel-close\x01\x18\x04\0\"ntwk:theater/message-server-cl\
+ient\x05\x17\x01B\x07\x02\x03\x02\x01\x07\x04\0\x05state\x03\0\0\x01o\x01s\x01o\x01\
+\x01\x01j\x01\x03\x01s\x01@\x02\x05state\x01\x06params\x02\0\x04\x04\0\x04init\x01\
+\x05\x04\0\x12ntwk:theater/actor\x05\x18\x02\x03\0\x02\x11middleware-result\x02\x03\
+\0\x04\x0ahandler-id\x01B'\x02\x03\x02\x01\x07\x04\0\x05state\x03\0\0\x02\x03\x02\
+\x01\x08\x04\0\x0chttp-request\x03\0\x02\x02\x03\x02\x01\x09\x04\0\x0dhttp-respo\
+nse\x03\0\x04\x02\x03\x02\x01\x0d\x04\0\x11websocket-message\x03\0\x06\x02\x03\x02\
+\x01\x19\x04\0\x11middleware-result\x03\0\x08\x02\x03\x02\x01\x1a\x04\0\x0ahandl\
+er-id\x03\0\x0a\x01o\x02\x0b\x03\x01o\x01\x05\x01o\x02\x01\x0d\x01j\x01\x0e\x01s\
+\x01@\x02\x05state\x01\x06params\x0c\0\x0f\x04\0\x0ehandle-request\x01\x10\x01o\x01\
+\x09\x01o\x02\x01\x11\x01j\x01\x12\x01s\x01@\x02\x05state\x01\x06params\x0c\0\x13\
+\x04\0\x11handle-middleware\x01\x14\x01ks\x01o\x04\x0bws\x15\x01o\x01\x01\x01j\x01\
+\x17\x01s\x01@\x02\x05state\x01\x06params\x16\0\x18\x04\0\x18handle-websocket-co\
+nnect\x01\x19\x01o\x03\x0bw\x07\x01p\x07\x01o\x01\x1b\x01o\x02\x01\x1c\x01j\x01\x1d\
+\x01s\x01@\x02\x05state\x01\x06params\x1a\0\x1e\x04\0\x18handle-websocket-messag\
+e\x01\x1f\x01o\x02\x0bw\x01@\x02\x05state\x01\x06params\x20\0\x18\x04\0\x1bhandl\
+e-websocket-disconnect\x01!\x04\0\x1antwk:theater/http-handlers\x05\x1b\x04\0\x18\
+ntwk:theater/claude-chat\x04\0\x0b\x11\x01\0\x0bclaude-chat\x03\0\0\0G\x09produc\
+ers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060\
+.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

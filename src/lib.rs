@@ -10,6 +10,7 @@ use crate::bindings::ntwk::theater::http_framework::{
 use crate::bindings::ntwk::theater::http_types::{HttpRequest, HttpResponse, MiddlewareResult};
 use crate::bindings::ntwk::theater::message_server_host::request;
 use crate::bindings::ntwk::theater::runtime::log;
+use crate::bindings::ntwk::theater::supervisor::spawn;
 use crate::bindings::ntwk::theater::timing::now;
 use crate::bindings::ntwk::theater::types::State;
 use crate::bindings::ntwk::theater::websocket_types::{MessageType, WebsocketMessage};
@@ -129,14 +130,18 @@ impl Guest for Component {
         let (param,) = params;
         log(&format!("Init parameter: {}", param));
 
-        // Initialize state (anthropic-proxy not yet connected)
+        // Start or connect to anthropic-proxy actor
+        let proxy_id = start_anthropic_proxy()?;
+        log(&format!("Connected to anthropic-proxy actor: {}", proxy_id));
+
+        // Initialize state with the proxy ID
         let chat_state = ChatState {
-            anthropic_proxy_id: "placeholder-proxy-id".to_string(), // Will be updated when proxy is ready
+            anthropic_proxy_id: proxy_id,
             connections: HashMap::new(),
             conversations: HashMap::new(),
         };
-        
-        log("Note: Using placeholder responses until anthropic-proxy is set up");
+
+        log("State initialized with anthropic-proxy connection");
 
         // Serialize state
         let state_bytes = match serde_json::to_vec(&chat_state) {
@@ -238,7 +243,10 @@ impl HttpHandlersGuest for Component {
                 let js = resources::BUNDLE_JS;
                 HttpResponse {
                     status: 200,
-                    headers: vec![("Content-Type".to_string(), "application/javascript".to_string())],
+                    headers: vec![(
+                        "Content-Type".to_string(),
+                        "application/javascript".to_string(),
+                    )],
                     body: Some(js.as_bytes().to_vec()),
                 }
             }
@@ -344,8 +352,7 @@ impl HttpHandlersGuest for Component {
                     .unwrap_or_default()
             }
             MessageType::Binary => {
-                String::from_utf8(message.data.expect("Binary data is missing"))
-                    .unwrap_or_default()
+                String::from_utf8(message.data.expect("Binary data is missing")).unwrap_or_default()
             }
             _ => String::new(),
         };
@@ -669,32 +676,78 @@ fn handle_client_message(
 }
 
 // Helper function to send a message to the Anthropic proxy
-// Currently using a filler response until the anthropic-proxy connection is set up
 fn send_to_anthropic(
-    _proxy_id: &str,
-    _conversation_id: &str,
+    proxy_id: &str,
+    conversation_id: &str,
     messages: &[ChatMessage],
-    _system: Option<String>,
+    system: Option<String>,
 ) -> Result<ChatMessage, String> {
-    log("Using filler response instead of Anthropic proxy");
+    log(&format!(
+        "Sending request to anthropic-proxy actor (ID: {})",
+        proxy_id
+    ));
 
-    // Get the latest user message for context
-    let latest_user_message = messages.iter()
-        .filter(|msg| msg.role == "user")
-        .last()
-        .map(|msg| msg.content.clone())
-        .unwrap_or_default();
-    
-    // Create a simple filler response that acknowledges the message
-    let filler_content = format!("This is a temporary filler response. You said: '{}'. Once the anthropic-proxy connection is set up, this will be replaced with actual Claude responses.", latest_user_message);
+    // Convert our ChatMessage format to the format expected by anthropic-proxy
+    let anthropic_messages: Vec<ChatMessage> = messages.iter().cloned().collect();
 
-    // Create assistant message with current timestamp
+    // Build the request payload for the anthropic-proxy
+    let req = serde_json::json!({
+        "version": "1.0",
+        "operation_type": "ChatCompletion",
+        "request_id": format!("req-{}", conversation_id),
+        "completion_request": {
+            "model": "claude-3-7-sonnet-20250219",
+            "messages": anthropic_messages,
+            "max_tokens": 1024,
+            "temperature": 0.7,
+            "system": system,
+            "top_p": null,
+            "anthropic_version": null,
+            "additional_params": null
+        },
+        "params": null
+    });
+
+    // Convert to bytes
+    let req_bytes = match serde_json::to_vec(&req) {
+        Ok(bytes) => bytes,
+        Err(e) => return Err(format!("Failed to serialize request: {}", e)),
+    };
+
+    // Send the request to the anthropic-proxy actor
+    let response_bytes = match request(proxy_id, &req_bytes) {
+        Ok(response) => response,
+        Err(e) => {
+            log(&format!("Error from anthropic-proxy: {}", e));
+            return Err(format!("Failed to send request to anthropic-proxy: {}", e));
+        }
+    };
+
+    // Parse the response
+    let response: serde_json::Value = match serde_json::from_slice(&response_bytes) {
+        Ok(resp) => resp,
+        Err(e) => return Err(format!("Failed to parse response: {}", e)),
+    };
+
+    // Check for errors
+    if response["status"].as_str() == Some("Error") {
+        let error_msg = response["error"].as_str().unwrap_or("Unknown error");
+        return Err(format!("Anthropic API error: {}", error_msg));
+    }
+
+    // Extract the generated content
+    let content = match response["completion"]["content"].as_str() {
+        Some(text) => text.to_string(),
+        None => return Err("No content in the response".to_string()),
+    };
+
     // Get current time in milliseconds and convert to seconds
     let timestamp = now() / 1000;
 
+    // Return the assistant message
     Ok(ChatMessage {
         role: "assistant".to_string(),
-        content: filler_content,
+        content,
         timestamp,
     })
 }
@@ -707,6 +760,23 @@ fn generate_conversation_id(string: String) -> String {
     let hash_str = hex::encode(hash);
 
     format!("conv-{}", hash_str)
+}
+
+// Helper function to start the anthropic-proxy actor
+fn start_anthropic_proxy() -> Result<String, String> {
+    // Start the anthropic-proxy actor
+    let manifest_path = "/Users/colinrozzi/work/actor-registry/anthropic-proxy/manifest.toml";
+    let proxy_id = match spawn(manifest_path, None) {
+        Ok(id) => id,
+        Err(e) => return Err(format!("Failed to start anthropic-proxy actor: {}", e)),
+    };
+
+    log(&format!(
+        "Started anthropic-proxy actor with ID: {}",
+        proxy_id
+    ));
+
+    Ok(proxy_id)
 }
 
 bindings::export!(Component with_types_in bindings);
