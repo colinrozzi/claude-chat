@@ -1,0 +1,33 @@
+=== Build Log for claude-chat ===
+Date: 20250429_083644
+Builder: nix
+Duration: 33 seconds
+
+=== STDOUT ===
+/nix/store/85h4w7mp6qfwcaqsr2gm73w6qydrr3kb-claude-chat-0.1.0
+
+=== STDERR ===
+unpacking 'github:NixOS/nixpkgs/5461b7fa65f3ca74cef60be837fd559a8918eaa0' into the Git cache...
+unpacking 'github:oxalica/rust-overlay/e552fe1b16ffafd678ebe061c22b117e050769ed' into the Git cache...
+warning: creating lock file '/Users/colinrozzi/work/actor-registry/claude-chat/flake.lock': 
+• Added input 'cargo-component-src':
+    'github:bytecodealliance/cargo-component/e0cc637009d008fe7713300459463ce92dfccd0c?narHash=sha256-Tlx14q/2k/0jZZ1nECX7zF/xNTeMCZg/fN%2BfhRM4uhc%3D' (2025-03-18)
+• Added input 'flake-utils':
+    'github:numtide/flake-utils/11707dc2f618dd54ca8739b309ec4fc024de578b?narHash=sha256-l0KFg5HjrsfsO/JpG%2Br7fRrqm12kzFHyUHqHCVpMMbI%3D' (2024-11-13)
+• Added input 'flake-utils/systems':
+    'github:nix-systems/default/da67096a3b9bf56a91d16901293e51ba5b49a27e?narHash=sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768%3D' (2023-04-09)
+• Added input 'nixpkgs':
+    'github:NixOS/nixpkgs/5461b7fa65f3ca74cef60be837fd559a8918eaa0?narHash=sha256-T36rUZHUART00h3dW4sV5tv4MrXKT7aWjNfHiZz7OHg%3D' (2025-04-27)
+• Added input 'rust-overlay':
+    'github:oxalica/rust-overlay/e552fe1b16ffafd678ebe061c22b117e050769ed?narHash=sha256-dxO3caQZMv/pMtcuXdi%2BSnAtyki6HFbSf1IpgQPXZYc%3D' (2025-04-29)
+• Added input 'rust-overlay/nixpkgs':
+    follows 'nixpkgs'
+this derivation will be built:
+  /nix/store/g1p55d18j1dk7iv9bcnhqfc9xfl04fxa-claude-chat-0.1.0.drv
+building '/nix/store/g1p55d18j1dk7iv9bcnhqfc9xfl04fxa-claude-chat-0.1.0.drv'...
+
+=== Exit Status: exit status: 0 ===
+
+=== Component Hash: e8ae51e62154ee2d ===
+
+=== Component Size: 122989 bytes ===
