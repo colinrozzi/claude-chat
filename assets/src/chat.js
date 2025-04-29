@@ -8,9 +8,7 @@ import {
     getConversationCreationTime,
     md,
     toggleTheme,
-    initTheme,
-    toggleLeftSidebar,
-    toggleRightSidebar
+    initTheme
 } from './utils.js';
 
 // State management
@@ -26,7 +24,7 @@ export const state = {
 // DOM elements
 export let elements = {};
 
-// Layout state is declared globally in index.html
+
 
 /**
  * Initialize DOM element references
@@ -50,13 +48,7 @@ export function setupElements() {
         chatCreatedTime: document.getElementById('chat-created-time'),
         chatMessageCount: document.getElementById('chat-message-count'),
         renameChatBtn: document.getElementById('rename-chat-btn'),
-        clearChatBtn: document.getElementById('clear-chat-btn'),
-        // Sidebar elements
-        appLayout: document.querySelector('.app-layout'),
-        conversationsSidebar: document.getElementById('conversations-sidebar'),
-        controlsSidebar: document.getElementById('controls-sidebar'),
-        toggleLeftSidebar: document.getElementById('toggle-left-sidebar'),
-        toggleRightSidebar: document.getElementById('toggle-right-sidebar')
+        clearChatBtn: document.getElementById('clear-chat-btn')
     };
 }
 
@@ -111,28 +103,7 @@ export function setupEventHandlers() {
     // Initialize theme
     initTheme();
     
-    // Initialize sidebar state
-    const savedLeftCollapsed = localStorage.getItem('leftSidebarCollapsed') === 'true';
-    const savedRightCollapsed = localStorage.getItem('rightSidebarCollapsed') === 'true';
-    
-    // Set initial state
-    layoutState.leftSidebarCollapsed = savedLeftCollapsed;
-    layoutState.rightSidebarCollapsed = savedRightCollapsed;
-    
-    // Apply initial classes
-    if (savedLeftCollapsed) {
-        elements.appLayout.classList.add('left-collapsed');
-    }
-    if (savedRightCollapsed) {
-        elements.appLayout.classList.add('right-collapsed');
-    }
-    if (savedLeftCollapsed && savedRightCollapsed) {
-        elements.appLayout.classList.add('both-collapsed');
-    }
-    
-    // Sidebar toggles
-    elements.toggleLeftSidebar.addEventListener('click', toggleLeftSidebar);
-    elements.toggleRightSidebar.addEventListener('click', toggleRightSidebar);
+    // Initialize theme (sidebar initialization moved to index.html)
     initTheme();
     
     // Load data from localStorage

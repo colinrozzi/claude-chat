@@ -132,6 +132,79 @@
         leftSidebarCollapsed: false,
         rightSidebarCollapsed: false
     };
+    
+    // Simple direct sidebar toggle functions
+    function toggleLeftSidebar() {
+        const appLayout = document.querySelector('.app-layout');
+        window.layoutState.leftSidebarCollapsed = !window.layoutState.leftSidebarCollapsed;
+        
+        if (window.layoutState.leftSidebarCollapsed) {
+            appLayout.classList.add('left-collapsed');
+        } else {
+            appLayout.classList.remove('left-collapsed');
+        }
+        
+        // Handle both sidebars collapsed
+        updateBothCollapsedState();
+        
+        // Save state
+        localStorage.setItem('leftSidebarCollapsed', window.layoutState.leftSidebarCollapsed);
+    }
+    
+    function toggleRightSidebar() {
+        const appLayout = document.querySelector('.app-layout');
+        window.layoutState.rightSidebarCollapsed = !window.layoutState.rightSidebarCollapsed;
+        
+        if (window.layoutState.rightSidebarCollapsed) {
+            appLayout.classList.add('right-collapsed');
+        } else {
+            appLayout.classList.remove('right-collapsed');
+        }
+        
+        // Handle both sidebars collapsed
+        updateBothCollapsedState();
+        
+        // Save state
+        localStorage.setItem('rightSidebarCollapsed', window.layoutState.rightSidebarCollapsed);
+    }
+    
+    function updateBothCollapsedState() {
+        const appLayout = document.querySelector('.app-layout');
+        
+        if (window.layoutState.leftSidebarCollapsed && window.layoutState.rightSidebarCollapsed) {
+            appLayout.classList.add('both-collapsed');
+        } else {
+            appLayout.classList.remove('both-collapsed');
+        }
+    }
+    
+    // Initialize sidebar state after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize sidebar state
+        const savedLeftCollapsed = localStorage.getItem('leftSidebarCollapsed') === 'true';
+        const savedRightCollapsed = localStorage.getItem('rightSidebarCollapsed') === 'true';
+        
+        // Set initial state
+        window.layoutState.leftSidebarCollapsed = savedLeftCollapsed;
+        window.layoutState.rightSidebarCollapsed = savedRightCollapsed;
+        
+        const appLayout = document.querySelector('.app-layout');
+        
+        // Apply initial classes
+        if (savedLeftCollapsed) {
+            appLayout.classList.add('left-collapsed');
+        }
+        if (savedRightCollapsed) {
+            appLayout.classList.add('right-collapsed');
+        }
+        if (savedLeftCollapsed && savedRightCollapsed) {
+            appLayout.classList.add('both-collapsed');
+        }
+        
+        // Setup toggle button event listeners directly
+        document.getElementById('toggle-left-sidebar').addEventListener('click', toggleLeftSidebar);
+        document.getElementById('toggle-right-sidebar').addEventListener('click', toggleRightSidebar);
+    });
 </script>
 <script type="module" src="/bundle.js"></script>
 </body>
