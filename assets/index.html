@@ -18,16 +18,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="logo-container">
-            <img src="https://www.anthropic.com/images/claude_insignia_white.svg" alt="Claude Logo" class="logo">
-            <h1>Claude Chat</h1>
-        </div>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
-            <i class="fas fa-moon"></i>
-        </button>
-    </header>
-    
     <div class="container">
         <div class="app-layout">
             <!-- Left sidebar with conversations -->
@@ -50,6 +40,10 @@
             <div class="chat-panel">
                 <div class="chat-header">
                     <div class="chat-title" id="current-chat-title">New Conversation</div>
+                    <!-- Added theme toggle button here -->
+                    <button id="theme-toggle" class="theme-toggle-chat" aria-label="Toggle dark mode">
+                        <i class="fas fa-moon"></i>
+                    </button>
                 </div>
                 
                 <div id="chat-messages" class="chat-messages">
