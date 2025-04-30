@@ -1,5 +1,5 @@
 name = "claude-chat"
-component_path = "/nix/store/wj2g1mvhd2zi9zbnbf80ya28b42mqigs-claude-chat-0.1.0/lib/claude-chat.wasm"
+component_path = "/nix/store/80vcdfmwnwng9shqnyjgfp5g20wnzrnb-claude-chat-0.1.0/lib/claude-chat.wasm"
 short_description = "An HTTP server actor with REST API and WebSocket support for Claude chat"
 
 [[handlers]]
